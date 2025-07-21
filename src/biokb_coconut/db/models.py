@@ -161,6 +161,10 @@ class Collection(Base):
         secondary=compound_collection, back_populates="collections"
     )
 
+    @property
+    def compound_identifiers(self):
+        return [compound.identifier for compound in self.compounds]
+
 
 class CAS(Base):
     __tablename__ = Base.table_prefix + "cas"

@@ -104,7 +104,8 @@ async def search_compounds(
     session: Session = Depends(get_session),
 ):
     """
-    Search nodes.
+    Search compounds. Returns a list of compounds with their DOIs,
+    synonyms, organisms, collections, and CAS numbers.
     """
     return build_dynamic_query(
         search_obj=search,
@@ -119,7 +120,7 @@ async def search_dois(
     session: Session = Depends(get_session),
 ):
     """
-    Search nodes.
+    Search DOIs. Returns a list of DOIs with their compounds.
     """
     return build_dynamic_query(
         search_obj=search,
@@ -136,10 +137,57 @@ async def search_organisms(
     session: Session = Depends(get_session),
 ):
     """
-    Search organisms.
+    Search organisms. Returns a list of organisms with their compounds.
     """
     return build_dynamic_query(
         search_obj=search,
         model_cls=models.Organism,
+        db=session,
+    )
+
+
+@app.get("/synonyms/", response_model=schemas.SynonymSearchResult, tags=[Tag.COMPOUND])
+async def search_synonyms(
+    search: schemas.SynonymSearch = Depends(),
+    session: Session = Depends(get_session),
+):
+    """
+    Search synonyms. Returns a list of synonyms with their compounds.
+    """
+    return build_dynamic_query(
+        search_obj=search,
+        model_cls=models.Synonym,
+        db=session,
+    )
+
+
+@app.get(
+    "/collections/", response_model=schemas.CollectionSearchResult, tags=[Tag.COMPOUND]
+)
+async def search_collections(
+    search: schemas.CollectionSearch = Depends(),
+    session: Session = Depends(get_session),
+):
+    """
+    Search collections. Returns a list of collections with their compound identifiers.
+    """
+    return build_dynamic_query(
+        search_obj=search,
+        model_cls=models.Collection,
+        db=session,
+    )
+
+
+@app.get("/cas/", response_model=schemas.CASSearchResult, tags=[Tag.COMPOUND])
+async def search_cas(
+    search: schemas.CASSearch = Depends(),
+    session: Session = Depends(get_session),
+):
+    """
+    Search CAS numbers. Returns a list of CAS numbers with their compounds.
+    """
+    return build_dynamic_query(
+        search_obj=search,
+        model_cls=models.CAS,
         db=session,
     )

@@ -213,3 +213,74 @@ class OrganismSearchResult(BaseModel):
     offset: int
     limit: int
     results: List[Organism_with_compounds]
+
+
+class SynonymBase(BaseModel):
+    id: int = Field(..., description="Primary key, unique identifier for the synonym")
+    name: str = Field(..., description="Name of the synonym")
+
+
+class SynonymSearch(OffsetLimit):
+    name: Optional[str] = Field(None, description="Name of the synonym")
+
+
+class Synonym_with_compounds(SynonymBase):
+    compounds: List[CompoundBase] = Field(
+        [], description="List of compounds associated with this synonym"
+    )
+
+
+class SynonymSearchResult(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    count: int
+    offset: int
+    limit: int
+    results: List[Synonym_with_compounds]
+
+
+class CASBase(BaseModel):
+    id: int = Field(..., description="Primary key, unique identifier for the CAS")
+    number: str = Field(..., description="Unique CAS identifier")
+
+
+class CAS_with_compounds(CASBase):
+    compounds: List[CompoundBase] = Field(
+        [], description="List of compounds associated with this CAS"
+    )
+
+
+class CASSearch(OffsetLimit):
+    number: Optional[str] = Field(None, description="Unique CAS number")
+
+
+class CASSearchResult(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    count: int
+    offset: int
+    limit: int
+    results: List[CAS_with_compounds]
+
+
+class CollectionBase(BaseModel):
+    id: int = Field(
+        ..., description="Primary key, unique identifier for the collection"
+    )
+    name: str = Field(..., description="Name of the collection")
+
+
+class Collection_with_compound_identifiers(CollectionBase):
+    compound_identifiers: List[str] = Field(
+        [], description="List of compound identifiers associated with this collection"
+    )
+
+
+class CollectionSearch(OffsetLimit):
+    name: Optional[str] = Field(None, description="Name of the collection")
+
+
+class CollectionSearchResult(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    count: int
+    offset: int
+    limit: int
+    results: List[Collection_with_compound_identifiers]
