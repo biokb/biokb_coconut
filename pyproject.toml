@@ -1,7 +1,7 @@
 [project]
 name = "biokb_coconut"
 version = "0.1.0"
-description = "Default template for PDM package"
+description = "API for Coconut"
 authors = [
     {name = "Christian Ebeling", email = "Christian.Ebeling@scai.fraunhofer.de"},
 ]
@@ -10,7 +10,6 @@ dependencies = [
     "fastapi[standard]>=0.116.1",
     "pandas>=2.3.1",
     "pymysql>=1.1.1",
-    "rdkit>=2025.3.3",
     "requests>=2.32.4",
     "sqlalchemy>=2.0.41",
 ]

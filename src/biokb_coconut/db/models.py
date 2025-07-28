@@ -1,6 +1,6 @@
 from typing import Optional
 
-from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String, Table, Text
+from sqlalchemy import Column, ForeignKey, Index, Integer, String, Table, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from biokb_coconut import constants
@@ -67,20 +67,24 @@ compound_doi = Table(
 
 class Compound(Base):
     __tablename__ = Base.table_prefix + "compound"
+    __table_args__ = {
+        "mysql_charset": "utf8",
+        "mysql_collate": "utf8_unicode_ci",
+    }
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    identifier: Mapped[str] = mapped_column(unique=True, nullable=False)
+    identifier: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     canonical_smiles: Mapped[str] = mapped_column(Text)
     standard_inchi: Mapped[str] = mapped_column(Text)
     standard_inchi_key: Mapped[str] = mapped_column(String(32))
-    name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    name: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     iupac_name: Mapped[Optional[str]] = mapped_column(Text)
     annotation_level: Mapped[int]
     total_atom_count: Mapped[int]
     heavy_atom_count: Mapped[int]
     molecular_weight: Mapped[float]
     exact_molecular_weight: Mapped[float]
-    molecular_formula: Mapped[str]
+    molecular_formula: Mapped[str] = mapped_column(String(255))
     alogp: Mapped[float]
     topological_polar_surface_area: Mapped[float]
     rotatable_bond_count: Mapped[int]
@@ -128,8 +132,16 @@ class Compound(Base):
 
 class DOI(Base):
     __tablename__ = Base.table_prefix + "doi"
+    __table_args__ = {
+        "mysql_charset": "utf8",
+        "mysql_collate": "utf8_unicode_ci",
+    }
+
     id: Mapped[int] = mapped_column(primary_key=True)
-    identifier: Mapped[str] = mapped_column(unique=True, index=True)
+    identifier: Mapped[str] = mapped_column(
+        String(255, collation="utf8mb4_bin"),
+        unique=True,
+    )
     compounds: Mapped[list["Compound"]] = relationship(
         secondary=compound_doi, back_populates="dois"
     )
@@ -137,17 +149,30 @@ class DOI(Base):
 
 class Synonym(Base):
     __tablename__ = Base.table_prefix + "synonym"
+    __table_args__ = {
+        "mysql_charset": "utf8",
+        "mysql_collate": "utf8_unicode_ci",
+    }
+
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(unique=True, index=True)
+    name: Mapped[str] = mapped_column(
+        String(768, collation="utf8mb4_bin"),
+    )
     compounds: Mapped[list["Compound"]] = relationship(
         secondary=compound_synonym, back_populates="synonyms"
     )
+    __table_args__ = (Index("uq_my_model_name", "name", unique=True, mysql_length=768),)
 
 
 class Organism(Base):
     __tablename__ = Base.table_prefix + "organism"
+    __table_args__ = {
+        "mysql_charset": "utf8",
+        "mysql_collate": "utf8_unicode_ci",
+    }
+
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(255, collation="utf8mb4_bin"), unique=True)
     compounds: Mapped[list["Compound"]] = relationship(
         secondary=compound_organism, back_populates="organisms"
     )
@@ -155,8 +180,13 @@ class Organism(Base):
 
 class Collection(Base):
     __tablename__ = Base.table_prefix + "collection"
+    __table_args__ = {
+        "mysql_charset": "utf8",
+        "mysql_collate": "utf8_unicode_ci",
+    }
+
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(255, collation="utf8mb4_bin"), unique=True)
     compounds: Mapped[list["Compound"]] = relationship(
         secondary=compound_collection, back_populates="collections"
     )
@@ -168,8 +198,15 @@ class Collection(Base):
 
 class CAS(Base):
     __tablename__ = Base.table_prefix + "cas"
+    __table_args__ = {
+        "mysql_charset": "utf8",
+        "mysql_collate": "utf8_unicode_ci",
+    }
     id = Column(Integer, primary_key=True)
-    number = Column(String, unique=True, index=True)
+    number = Column(
+        String(255, collation="utf8mb4_bin"),
+        unique=True,
+    )
     compounds: Mapped[list["Compound"]] = relationship(
         secondary=compound_cas, back_populates="cas_numbers"
     )

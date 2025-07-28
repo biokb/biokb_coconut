@@ -83,7 +83,6 @@ class DbManager:
     def import_data(self):
         """Import data from SQL file and use mappings to import data."""
         self.recreate_db()
-        inserted: dict[str, Optional[int]] = {}
         path_to_file = self.path_to_file or self.download_data()
         logger.info("Importing data from %s", path_to_file)
         # Unzip the test.zip file in the data folder
@@ -107,7 +106,7 @@ class DbManager:
         )  # create a plural to allow for easier handling
         df.index = df.index + 1  # Adjust index to start from 1
         df.index.name = "id"
-        df[column_names].to_sql(
+        inserted_rows = df[column_names].to_sql(
             models.Compound.__tablename__,
             self.engine,
             if_exists="append",
@@ -150,6 +149,7 @@ class DbManager:
             joining_model=models.compound_cas,
             model=models.CAS,
         )
+        return {"inserted_rows": inserted_rows}
 
     def import_n2m_column(
         self,
@@ -158,14 +158,21 @@ class DbManager:
         joining_model,
         model,
     ):
-        df = column_series.dropna().str.split("|").explode().to_frame()
         index_on: str = str(column_series.name)
 
-        df_unique = pd.DataFrame(df.iloc[:, 0].unique(), columns=[column_name])
+        # Import a many-to-many relationship column from the DataFrame.
+        # The column_series should contain strings with values separated by '|'.
+        df = column_series.dropna().str.split("|").explode().to_frame()
+
+        # create a table with unique values for column
+        df_unique = pd.DataFrame(
+            df.iloc[:, 0].str.strip().unique(), columns=[column_name]
+        )
         df_unique.index += 1  # Start index from 1
-        df_unique.index.name = "id"
+        df_unique.index.name = "id"  # rename index to id
         df_unique.to_sql(model.__tablename__, self.engine, if_exists="append")
 
+        # create a association (n:m) table
         df_unique[index_on[:-1] + "_id"] = df_unique.index
         df["compound_id"] = df.index
         df_1 = df.set_index(index_on)

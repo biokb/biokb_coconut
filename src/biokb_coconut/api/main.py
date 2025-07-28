@@ -45,7 +45,9 @@ async def lifespan(app: FastAPI):
     pass
 
 
-description = """A RESTful API for PSC-db allows programmatic access to its rich dataset of plant secondary compounds."""
+description = (
+    """A RESTful API for Coconut. Reference: https://coconut.naturalproducts.net/"""
+)
 
 app = FastAPI(
     title="RESTful API for Coconut",
