@@ -24,3 +24,8 @@ build-backend = "pdm.backend"
 
 [tool.pdm]
 distribution = true
+
+[dependency-groups]
+docs = [
+    "eralchemy[graphviz]>=1.5.0",
+]
