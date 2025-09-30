@@ -139,7 +139,9 @@ class DOI(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     identifier: Mapped[str] = mapped_column(
-        String(255, collation="utf8mb4_bin"),
+        # The collation in this String column only works for MySQL, not SQLite or other dialects. I will replace it with a dialect-specific variant for now everywhere
+        # String(255, collation="utf8mb4_bin"),
+        String(255).with_variant(String(255, collation="utf8mb4_bin"), "mysql"),
         unique=True,
     )
     compounds: Mapped[list["Compound"]] = relationship(
@@ -156,7 +158,8 @@ class Synonym(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(
-        String(768, collation="utf8mb4_bin"),
+        # String(768, collation="utf8mb4_bin"),
+        String(768).with_variant(String(768, collation="utf8mb4_bin"), "mysql")
     )
     compounds: Mapped[list["Compound"]] = relationship(
         secondary=compound_synonym, back_populates="synonyms"
@@ -172,7 +175,8 @@ class Organism(Base):
     }
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(255, collation="utf8mb4_bin"), unique=True)
+    # name: Mapped[str] = mapped_column(String(255, collation="utf8mb4_bin"), unique=True)
+    name: Mapped[str] = mapped_column(String(255).with_variant(String(255, collation="utf8mb4_bin"), "mysql"), unique=True)
     compounds: Mapped[list["Compound"]] = relationship(
         secondary=compound_organism, back_populates="organisms"
     )
@@ -186,7 +190,8 @@ class Collection(Base):
     }
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(255, collation="utf8mb4_bin"), unique=True)
+    #name: Mapped[str] = mapped_column(String(255, collation="utf8mb4_bin"), unique=True)
+    name: Mapped[str] = mapped_column(String(255).with_variant(String(255, collation="utf8mb4_bin"), "mysql"), unique=True)
     compounds: Mapped[list["Compound"]] = relationship(
         secondary=compound_collection, back_populates="collections"
     )
@@ -204,7 +209,8 @@ class CAS(Base):
     }
     id = Column(Integer, primary_key=True)
     number = Column(
-        String(255, collation="utf8mb4_bin"),
+        # String(255, collation="utf8mb4_bin"),
+        String(255).with_variant(String(255, collation="utf8mb4_bin"), "mysql"),
         unique=True,
     )
     compounds: Mapped[list["Compound"]] = relationship(
