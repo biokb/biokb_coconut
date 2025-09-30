@@ -70,7 +70,7 @@ class DbManager:
         self.create_db()
 
     def download_data(self) -> str:
-        """Downloads file from PSC if it does not already exist locally.
+        """Downloads file from Coconut if it does not already exist locally.
         Returns:
             str: The full path to the downloaded or existing data file.
         """
@@ -83,17 +83,25 @@ class DbManager:
     def import_data(self):
         """Import data from SQL file and use mappings to import data."""
         self.recreate_db()
-        path_to_file = self.path_to_file or self.download_data()
+        # This version ALWAYS downloads the full data. Instead, we will use a version that only downloads the full data if a file path has not been set.
+        # path_to_file = self.path_to_file or self.download_data()
+        if not self.path_to_file:
+            self.path_to_file = self.download_data()
+        path_to_file = self.path_to_file
         logger.info("Importing data from %s", path_to_file)
         # Unzip the test.zip file in the data folder
         with zipfile.ZipFile(path_to_file, "r") as zip_ref:
+            # Get the names of extracted files (in this case only a single file) to use as reference below
+            extracted = zip_ref.namelist()
             zip_ref.extractall(constants.DATA_FOLDER)
+            
 
-        # Assume the extracted file is test.csv
-        csv_path = os.path.join(
-            constants.DATA_FOLDER,
-            "coconut_csv-07-2025.csv",
-        )
+        # With namelist: Get the extracted file from the first namelist index | Previously: Assume the extracted file is test.csv
+        # csv_path = os.path.join(
+        #    constants.DATA_FOLDER,
+        #    "coconut_csv-07-2025.csv",
+        # )
+        csv_path = os.path.join(constants.DATA_FOLDER, extracted[0])
         column_names = [
             column.name
             for column in models.Compound.__table__.columns
