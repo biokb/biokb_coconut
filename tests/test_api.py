@@ -50,3 +50,134 @@ def test_server(client_with_data: TestClient):
     assert response.status_code == 200
     assert response.json() == {"msg": "Running!"}
 
+
+class TestCompound:
+    def test_get_compound(self, client_with_data: TestClient):
+        response = client_with_data.get("compounds/?identifier=1")
+        assert response.status_code == 200
+        data = response.json()
+        # Note: In the original result, there are many boolean columns that are replaced here with 0 for false and 1 for true
+        expected = {
+        "count": 1,
+        "offset": 0,
+        "limit": 10,
+        "results": [
+            {
+            "id": 1,
+            "identifier": "1",
+            "canonical_smiles": "Smile_1",
+            "standard_inchi": "Inchi_1",
+            "standard_inchi_key": "inchi_key_1",
+            "name": "Esorubicin",
+            "iupac_name": "(7~{S},9~{S})-7-[(2~{S},4~{R},6~{S})-4-amino-6-methyl-tetrahydropyran-2-yl]oxy-6,9,11-trihydroxy-9-(2-hydroxyacetyl)-4-methoxy-8,10-dihydro-7~{H}-tetracene-5,12-dione",
+            "annotation_level": 3,
+            "total_atom_count": 67,
+            "heavy_atom_count": 38,
+            "molecular_weight": 527.53,
+            "exact_molecular_weight": 527.17915,
+            "molecular_formula": "C27H29NO10",
+            "alogp": 1.03,
+            "topological_polar_surface_area": 185.84,
+            "rotatable_bond_count": 5,
+            "hydrogen_bond_acceptors": 11,
+            "hydrogen_bond_donors": 5,
+            "hydrogen_bond_acceptors_lipinski": 11,
+            "hydrogen_bond_donors_lipinski": 5,
+            "lipinski_rule_of_five_violations": 2,
+            "aromatic_rings_count": 2,
+            "qed_drug_likeliness": 0.3,
+            "formal_charge": 0,
+            "fractioncsp3": 0.44,
+            "number_of_minimal_rings": 5,
+            "van_der_walls_volume": 445.49,
+            "contains_sugar": 0,
+            "contains_ring_sugars": 0,
+            "contains_linear_sugars": 0,
+            "murcko_framework": "O1CCCCC1OC2c3cc4c(cc3CCC2)Cc5ccccc5C4",
+            "np_likeness": 1.56,
+            "chemical_class": "Naphthacenes",
+            "chemical_sub_class": "Tetracenequinones",
+            "chemical_super_class": "Benzenoids",
+            "direct_parent_classification": "Tetracenequinones",
+            "np_classifier_pathway": "Polyketides",
+            "np_classifier_superclass": "Polycyclic aromatic polyketides",
+            "np_classifier_class": "Anthracyclines",
+            "np_classifier_is_glycoside": 1
+            }
+        ]
+        }
+        assert data == expected
+
+    def test_list_compounds(self, client_with_data: TestClient):
+        response = client_with_data.get("/compounds/")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["results"]) == 3
+
+    def test_list_compounds_offset(self, client_with_data: TestClient):
+        response = client_with_data.get("/compounds/?offset=2")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["results"]) == 1
+
+    def test_list_compounds_limit(self, client_with_data: TestClient):
+        response = client_with_data.get("/compounds/?limit=2")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["results"]) == 2
+
+    def test_list_compounds_offset_limit(self, client_with_data: TestClient):
+        response = client_with_data.get("compounds/?offset=2&limit=2")
+        assert response.status_code == 200
+        data = response.json()
+        expected = {
+        "count": 3,
+        "offset": 2,
+        "limit": 2,
+        "results": [
+            {
+            "id": 3,
+            "identifier": "3",
+            "canonical_smiles": "Smile_3",
+            "standard_inchi": "Inchi_3",
+            "standard_inchi_key": "inchi_key_3",
+            "name": "Talotrexin",
+            "iupac_name": "2-[[(4~{S})-4-carboxy-4-[[4-[(2,4-diaminopteridin-6-yl)methylamino]benzoyl]amino]butyl]carbamoyl]benzoic acid",
+            "annotation_level": 3,
+            "total_atom_count": 69,
+            "heavy_atom_count": 42,
+            "molecular_weight": 573.57,
+            "exact_molecular_weight": 573.20843,
+            "molecular_formula": "C27H27N9O6",
+            "alogp": 1.29,
+            "topological_polar_surface_area": 248.43,
+            "rotatable_bond_count": 12,
+            "hydrogen_bond_acceptors": 11,
+            "hydrogen_bond_donors": 7,
+            "hydrogen_bond_acceptors_lipinski": 11,
+            "hydrogen_bond_donors_lipinski": 7,
+            "lipinski_rule_of_five_violations": 3,
+            "aromatic_rings_count": 4,
+            "qed_drug_likeliness": 0.12,
+            "formal_charge": 0,
+            "fractioncsp3": 0.19,
+            "number_of_minimal_rings": 4,
+            "van_der_walls_volume": 494.02,
+            "contains_sugar": 0,
+            "contains_ring_sugars": 0,
+            "contains_linear_sugars": 0,
+            "murcko_framework": "n1cnc2ncc(nc2c1)CNc3ccc(cc3)CNCCCCNCc4ccccc4",
+            "np_likeness": -0.62,
+            "chemical_class": "Benzene and substituted derivatives",
+            "chemical_sub_class": "Benzoic acids and derivatives",
+            "chemical_super_class": "Benzenoids",
+            "direct_parent_classification": "Hippuric acids and derivatives",
+            "np_classifier_pathway": "Alkaloids",
+            "np_classifier_superclass": "NoSuperclass",
+            "np_classifier_class": "NoSuperclass",
+            "np_classifier_is_glycoside": 0
+            }
+        ]
+        }
+        assert data == expected
+
