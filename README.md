@@ -1,5 +1,11 @@
 # biokb_coconut
 
+```bash
+podman-compose -f docker-compose.db_neo.yml up -d
+podman-compose up --build -d
+```
+
+
 ## Installation
 
 ```bash
