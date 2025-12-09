@@ -35,6 +35,13 @@ os.makedirs(TAXONOMY_DATA_FOLDER, exist_ok=True)
 
 BASIC_NODE_LABEL = "DbCoconut"
 
-EXPORT_FOLDER = os.path.join(DATA_FOLDER, "ttls")
-os.makedirs(EXPORT_FOLDER, exist_ok=True)
+TTL_EXPORT_FOLDER = os.path.join(DATA_FOLDER, "ttls")
+os.makedirs(TTL_EXPORT_FOLDER, exist_ok=True)
 TAXONOMY_DATA_FOLDER = os.path.join(BIOKB_FOLDER, "taxtree", "data")
+
+
+BASIC_NODE_LABEL = "DbCoconut"
+NEO4J_PASSWORD = "neo4j_password"
+NEO4J_URI = "bolt://localhost:7687"
+NEO4J_USER = "neo4j"
+ZIPPED_TTLS_PATH = os.path.join(DATA_FOLDER, "ttls.zip")
