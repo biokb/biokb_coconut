@@ -50,8 +50,8 @@ class Neo4jImporter:
             2. Environment variables (NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD)
             3. Module-level constants (NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD)
         """
-        self.neo4j_uri = neo4j_uri if neo4j_uri else getenv("NEO4J_URI", NEO4J_URI)
-        self.neo4j_user = neo4j_user if neo4j_user else getenv("NEO4J_USER", NEO4J_USER)
+        self.neo4j_uri = neo4j_uri or getenv("NEO4J_URI", NEO4J_URI)
+        self.neo4j_user = neo4j_user or getenv("NEO4J_USER", NEO4J_USER)
         self.neo4j_pwd = (
             neo4j_pwd if neo4j_pwd else getenv("NEO4J_PASSWORD", NEO4J_PASSWORD)
         )
