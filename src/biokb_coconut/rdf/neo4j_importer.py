@@ -52,9 +52,7 @@ class Neo4jImporter:
         """
         self.neo4j_uri = neo4j_uri or getenv("NEO4J_URI", NEO4J_URI)
         self.neo4j_user = neo4j_user or getenv("NEO4J_USER", NEO4J_USER)
-        self.neo4j_pwd = (
-            neo4j_pwd if neo4j_pwd else getenv("NEO4J_PASSWORD", NEO4J_PASSWORD)
-        )
+        self.neo4j_pwd = neo4j_pwd or getenv("NEO4J_PASSWORD", NEO4J_PASSWORD)
 
         self.driver = GraphDatabase.driver(
             self.neo4j_uri, auth=(self.neo4j_user, self.neo4j_pwd)
