@@ -2,6 +2,20 @@
 
 This module provides functionality to export taxonomic and geographic data from a SQL database
 into RDF Turtle format, suitable for semantic web applications and knowledge graphs.
+
+Reasons for excluding compounds:
+
+| COCONUT Parameter | Threshold for Very Low Potential | Related Lipinski Rule (Ro5) | Why it Hinders Wound Healing Drug Action |
+| :--- | :--- | :--- | :--- |
+| **`lipinski_rule_of_five_violations`** | $>= 2$ Violations | The overall rule compliance. | **Poor Absorption:** Two or more violations strongly predict that the molecule will be too large or too polar to achieve passive diffusion, resulting in very low concentrations reaching the deep dermis from topical application. |
+| **`molecular_weight`** | $> 500$ Daltons (Da) | Molecular weight $<= 500$ Da. | **Low Skin Penetration:** Compounds over 500 Da generally cannot cross the **stratum corneum** (the outermost skin barrier) by passive diffusion, severely limiting their ability to reach the wound site. |
+| **`hydrogen_bond_donors_lipinski` (HBD)** | $> 5$ | HBD $<= 5$. | **High Polarity/Desolvation:** Too many HBDs increase the energy needed for the molecule to shed its surrounding water molecules (desolvation), making it energetically unfavorable to partition into the lipid bilayer of cell membranes. |
+| **`hydrogen_bond_acceptors_lipinski` (HBA)** | $> 10$ | HBA $<= 10$. | **High Polarity/Solubility:** Similar to HBD, too many acceptors anchor the molecule strongly to the aqueous environment, preventing it from crossing the lipid-rich barriers in the skin. |
+| **`alogp`** | $> 5$ | $\text{cLogP} <= 5$. | **Excessive Lipophilicity:** While some lipophilicity is needed, an $\text{alogP}$ over 5 means the compound is too fat-soluble. This can lead to poor solubility in formulation vehicles and potential non-specific binding/accumulation in fatty tissues, leading to poor systemic availability or toxicity. |
+| **`topological_polar_surface_area` (TPSA)** | $> 140 A°2 | Not directly in Ro5, but strongly related to HBD/HBA. | **Low Permeability:** TPSA quantifies the polar surface. Values over $140 A°^2 are strongly correlated with very poor passive permeability across biological membranes, including the skin. |
+| **`qed_drug_likeliness`** | $< 0.67$ | Overall measure of drug quality. | **Low Overall Quality:** This score integrates the crucial physicochemical factors. A low score suggests the molecule possesses characteristics that make it significantly less "drug-like" compared to established medicines. |
+
+Would you like me to use the search tool to find the actual Lipinski rule values for a specific natural product used in wound healing, like Curcumin?
 """
 
 import logging
@@ -13,19 +27,15 @@ from typing import List, Type, TypeVar
 from urllib.parse import urlparse
 
 from rdflib import RDF, XSD, Graph, Literal, Namespace, URIRef
-from sqlalchemy import Engine
+from sqlalchemy import Engine, create_engine, select
 from sqlalchemy.orm import sessionmaker
 from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
 
-from biokb_coconut.constants import (
-    BASIC_NODE_LABEL,
-    DATA_FOLDER,
-    EXPORT_FOLDER,
-    TAXONOMY_URL,
-)
+from biokb_coconut import constants
+from biokb_coconut.constants import BASIC_NODE_LABEL, TTL_EXPORT_FOLDER
 from biokb_coconut.db import models
 from biokb_coconut.rdf import namespaces
 
@@ -66,6 +76,9 @@ def get_empty_graph() -> Graph:
         namespace=namespaces.NP_CLASSIFIER_SUPERCLASS_NS,
     )
     graph.bind(prefix="npc", namespace=namespaces.NP_CLASSIFIER_CLASS_NS)
+    graph.bind(prefix="wcvp", namespace=namespaces.WCVP_PLANT_NS)
+    graph.bind(prefix="ncbi", namespace=namespaces.NCBI_TAXON_NS)
+    graph.bind(prefix="ipni", namespace=namespaces.IPNI_NS)
 
     return graph
 
@@ -100,27 +113,44 @@ class TurtleCreator:
     from a relational database into RDF Turtle format for use in semantic web applications.
     """
 
+    compound_filter = (
+        models.Compound.lipinski_rule_of_five_violations <= 1,
+        models.Compound.hydrogen_bond_donors_lipinski <= 5,
+        models.Compound.hydrogen_bond_acceptors_lipinski <= 10,
+        models.Compound.molecular_weight <= 500,
+        models.Compound.alogp <= 5,
+        models.Compound.qed_drug_likeliness >= 0.67,
+        models.Compound.topological_polar_surface_area <= 140,
+    )
+
     def __init__(
         self,
         engine: Engine | None = None,
     ):
-        self.__ttls_folder = EXPORT_FOLDER
-        # Set up database engine and session factory
-        self.__engine = engine
+        self.__ttls_folder = TTL_EXPORT_FOLDER
+        connection_str = os.getenv(
+            "CONNECTION_STR", constants.DB_DEFAULT_CONNECTION_STR
+        )
+        self.__engine = engine if engine else create_engine(str(connection_str))
         self.Session = sessionmaker(bind=self.__engine)
 
     def create_ttls(self) -> str:
+        """Generate RDF Turtle files from the database.
+        Returns:
+            Path to the zip file containing all generated Turtle files.
+        """
         logging.info("Starting turtle file generation process.")
 
-        self.create_compounds()
-        self.create_only_name_classes()
+        self._create_compounds()
+        self._create_only_name_classes()
+        self._create_organisms_with_links()
 
         # Package everything into a zip file
-        path_to_zip_file: str = self.create_zip_from_all_ttls()
+        path_to_zip_file: str = self._create_zip_from_all_ttls()
         logging.info(f"Turtle files successfully packaged in {path_to_zip_file}")
         return path_to_zip_file
 
-    def create_organisms_with_links(self):
+    def _create_organisms_with_links(self):
         logging.info("Creating RDF organisms turtle file.")
         org_ns = get_namespace(models.Organism.__name__)
         graph = get_empty_graph()
@@ -128,7 +158,12 @@ class TurtleCreator:
 
         with self.Session() as session:
             # Query only accepted plant names (not synonyms)
-            organisms: List[models.Organism] = session.query(models.Organism).all()
+            organisms: List[models.Organism] = (
+                session.query(models.Organism)
+                .join(models.Organism.compounds)
+                .where(*self.compound_filter)
+                .all()
+            )
 
             for organism in tqdm(organisms, desc="Creating organisms triples"):
 
@@ -162,18 +197,35 @@ class TurtleCreator:
                         triple=(
                             org,
                             namespaces.REL_NS["SAME_AS"],
-                            Literal(organism.tax_id, datatype=XSD.integer),
+                            namespaces.NCBI_TAXON_NS[str(organism.tax_id)],
                         )
                     )
-                # link compounds
-                for compound in organism.compounds:
+                if organism.ipni_id:
                     graph.add(
                         triple=(
                             org,
-                            namespaces.REL_NS["HAS_COMPOUND"],
-                            namespaces.COMP_NS[str(compound.identifier)],
+                            namespaces.REL_NS["SAME_AS"],
+                            namespaces.IPNI_NS[str(organism.ipni_id)],
                         )
                     )
+
+            stmt = (
+                select(models.Organism.id, models.Compound.identifier)
+                .select_from(models.Compound)
+                .join(models.Compound.organisms)
+                .where(*self.compound_filter)
+            )
+
+            rows = session.execute(stmt).all()
+            # link compounds
+            for row in tqdm(rows, desc="Creating compound/organism link triples"):
+                graph.add(
+                    triple=(
+                        org_ns[str(row.id)],
+                        namespaces.REL_NS["HAS_COMPOUND"],
+                        namespaces.COMP_NS[str(row.identifier)],
+                    )
+                )
 
         ttl_path = os.path.join(
             self.__ttls_folder, f"{models.Organism.__tablename__}.ttl"
@@ -195,11 +247,12 @@ class TurtleCreator:
         graph.bind(prefix="c", namespace=namespaces.COMP_NS)
 
         with self.Session() as session:
-            # Query all entities of model
-            entities: List[models.OnlyName] = session.query(model).all()
-            for entity in tqdm(entities, desc=f"Creating {model.__name__} triples"):
+
+            rows_model = session.query(model.id, model.name).all()
+
+            for row in tqdm(rows_model, desc=f"Creating {model.__name__} triples"):
                 # uri
-                ent: URIRef = model_namespace[str(entity.id)]
+                ent: URIRef = model_namespace[str(row.id)]
                 # type declarations
                 graph.add(triple=(ent, RDF.type, namespaces.NODE_NS[BASIC_NODE_LABEL]))
                 graph.add(
@@ -215,24 +268,41 @@ class TurtleCreator:
                     triple=(
                         ent,
                         namespaces.REL_NS["name"],
-                        Literal(entity.name, datatype=XSD.string),
+                        Literal(row.name, datatype=XSD.string),
                     )
                 )
-                # link compounds
-                for compound in entity.compounds:
-                    graph.add(
-                        triple=(
-                            namespaces.COMP_NS[str(compound.identifier)],
-                            namespaces.REL_NS[get_rel_name(model)],
-                            ent,
-                        )
+
+            # link compounds
+
+            stmt = (
+                select(
+                    models.ChemicalClass.id.label("model_id"),
+                    models.Compound.identifier.label("compound_identifier"),
+                )
+                .select_from(models.Compound)
+                .join(models.ChemicalClass)
+                .where(*self.compound_filter)
+            )
+            rows_compound_link = session.execute(stmt).all()
+
+            for model_id, compound_identifier in tqdm(
+                rows_compound_link,
+                desc=f"Creating compound/{model.__name__} link triples",
+            ):
+                # compounds
+                graph.add(
+                    triple=(
+                        namespaces.COMP_NS[str(compound_identifier)],
+                        namespaces.REL_NS[get_rel_name(model)],
+                        model_namespace[str(model_id)],
                     )
+                )
 
         ttl_path = os.path.join(self.__ttls_folder, f"{model.__tablename__}.ttl")
         graph.serialize(ttl_path, format="turtle")
         del graph
 
-    def create_only_name_classes(self):
+    def _create_only_name_classes(self):
         list_of_models: List[Type[models.OnlyName]] = [
             models.ChemicalClass,
             models.ChemicalSubClass,
@@ -245,13 +315,15 @@ class TurtleCreator:
         for model in list_of_models:
             self.__create_only_name_class(model)
 
-    def create_compounds(self):
+    def _create_compounds(self):
         logging.info("Creating RDF compounds turtle file.")
         graph = get_empty_graph()
 
         with self.Session() as session:
             # Query only accepted plant names (not synonyms)
-            compounds: List[models.Compound] = session.query(models.Compound).all()
+            compounds: List[models.Compound] = (
+                session.query(models.Compound).where(*self.compound_filter).all()
+            )
 
             for compound in tqdm(compounds, desc="Creating compounds triples"):
                 comp: URIRef = namespaces.COMP_NS[str(compound.identifier)]
@@ -267,8 +339,8 @@ class TurtleCreator:
                 graph.add(
                     triple=(
                         comp,
-                        namespaces.REL_NS["name"],
-                        Literal(compound.name, datatype=XSD.string),
+                        namespaces.REL_NS["iupac_name"],
+                        Literal(compound.iupac_name, datatype=XSD.string),
                     )
                 )
                 graph.add(
@@ -278,82 +350,31 @@ class TurtleCreator:
                         namespaces.INCHI_NS[compound.standard_inchi_key],
                     )
                 )
-                if compound.chemical_class_id:
-                    graph.add(
-                        triple=(
-                            comp,
-                            namespaces.REL_NS["HAS_CHEMICAL_CLASSIFIER"],
-                            namespaces.CHEMICAL_CLASS_NS[
-                                str(compound.chemical_class_id)
-                            ],
+                for property in [
+                    "hydrogen_bond_acceptors_lipinski",
+                    "hydrogen_bond_donors_lipinski",
+                    "lipinski_rule_of_five_violations",
+                    "np_likeness",
+                    "qed_drug_likeliness",
+                    "topological_polar_surface_area",
+                    "molecular_weight",
+                    "alogp",
+                ]:
+                    value = getattr(compound, property)
+                    if value is not None:
+                        graph.add(
+                            triple=(
+                                comp,
+                                namespaces.REL_NS[property],
+                                Literal(value, datatype=XSD.float),
+                            )
                         )
-                    )
-                if compound.chemical_sub_class_id:
-                    graph.add(
-                        triple=(
-                            comp,
-                            namespaces.REL_NS["HAS_CHEMICAL_CLASSIFIER"],
-                            namespaces.CHEMICAL_SUB_CLASS_NS[
-                                str(compound.chemical_sub_class_id)
-                            ],
-                        )
-                    )
-                if compound.chemical_super_class_id:
-                    graph.add(
-                        triple=(
-                            comp,
-                            namespaces.REL_NS["HAS_CHEMICAL_CLASSIFIER"],
-                            namespaces.CHEMICAL_SUPER_CLASS_NS[
-                                str(compound.chemical_super_class_id)
-                            ],
-                        )
-                    )
-                if compound.direct_parent_classification_id:
-                    graph.add(
-                        triple=(
-                            comp,
-                            namespaces.REL_NS["HAS_CHEMICAL_CLASSIFIER"],
-                            namespaces.DIRECT_PARENT_CLASSIFICATION_NS[
-                                str(compound.direct_parent_classification_id)
-                            ],
-                        )
-                    )
-                if compound.np_classifier_pathway_id:
-                    graph.add(
-                        triple=(
-                            comp,
-                            namespaces.REL_NS["HAS_NP_CLASSIFIER"],
-                            namespaces.NP_CLASSIFIER_PATHWAY_NS[
-                                str(compound.np_classifier_pathway_id)
-                            ],
-                        )
-                    )
-                if compound.np_classifier_superclass_id:
-                    graph.add(
-                        triple=(
-                            comp,
-                            namespaces.REL_NS["HAS_NP_CLASSIFIER"],
-                            namespaces.NP_CLASSIFIER_SUPERCLASS_NS[
-                                str(compound.np_classifier_superclass_id)
-                            ],
-                        )
-                    )
-                if compound.np_classifier_class_id:
-                    graph.add(
-                        triple=(
-                            comp,
-                            namespaces.REL_NS["HAS_NP_CLASSIFIER"],
-                            namespaces.NP_CLASSIFIER_CLASS_NS[
-                                str(compound.np_classifier_class_id)
-                            ],
-                        )
-                    )
 
         ttl_path = os.path.join(self.__ttls_folder, "coconut_compounds.ttl")
         graph.serialize(ttl_path, format="turtle")
         del graph
 
-    def create_zip_from_all_ttls(self) -> str:
+    def _create_zip_from_all_ttls(self) -> str:
         """Package all generated turtle files into a single zip archive.
 
         Creates a zip file containing all .ttl files in the export folder,
