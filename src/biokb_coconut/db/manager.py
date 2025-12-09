@@ -51,6 +51,8 @@ class DbManager:
 
     def set_path_to_file(self, path_to_file: str):
         # needed for tests
+        if not os.path.exists(path_to_file):
+            raise FileNotFoundError(f"The file {path_to_file} does not exist.")
         self.path_to_file = path_to_file
 
     def create_db(self):
@@ -70,13 +72,13 @@ class DbManager:
         self.drop_db()
         self.create_db()
 
-    def download_data(self) -> str:
+    def download_data(self, force_download: bool = False) -> str:
         """Downloads file from Coconut if it does not already exist locally.
         Returns:
             str: The full path to the downloaded or existing data file.
         """
         path_to_file = os.path.join(constants.DATA_FOLDER, self.filename)
-        if not os.path.exists(path_to_file):
+        if not os.path.exists(path_to_file) or force_download:
             logger.info("Start download %s", self.filename)
             urllib.request.urlretrieve(constants.DOWNLOAD_LINK, path_to_file)
         return path_to_file
@@ -103,10 +105,12 @@ class DbManager:
             suffixes=("", f"_{column_name}"),
         ).drop(columns=[f"name_{column_name}"])
 
-    def import_data(self):
+    def import_data(self, force_download: bool = False) -> int | None:
         """Import data from SQL file and use mappings to import data."""
         self.recreate_db()
-        path_to_file = self.path_to_file or self.download_data()
+        path_to_file = self.path_to_file or self.download_data(
+            force_download=force_download
+        )
 
         logger.info("Importing data from %s", path_to_file)
         df = pd.read_csv(
