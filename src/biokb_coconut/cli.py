@@ -1,5 +1,3 @@
-from venv import create
-
 import click
 from sqlalchemy import create_engine
 

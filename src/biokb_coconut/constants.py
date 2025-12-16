@@ -33,8 +33,6 @@ TAXONOMY_URL = "https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdmp.zip"
 TAXONOMY_DATA_FOLDER = os.path.join(BIOKB_FOLDER, "taxtree", "data")
 os.makedirs(TAXONOMY_DATA_FOLDER, exist_ok=True)
 
-BASIC_NODE_LABEL = "DbCoconut"
-
 TTL_EXPORT_FOLDER = os.path.join(DATA_FOLDER, "ttls")
 os.makedirs(TTL_EXPORT_FOLDER, exist_ok=True)
 TAXONOMY_DATA_FOLDER = os.path.join(BIOKB_FOLDER, "taxtree", "data")

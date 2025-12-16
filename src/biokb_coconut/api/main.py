@@ -1,14 +1,11 @@
 import logging
 import os
-import re
 import secrets
 from contextlib import asynccontextmanager
-from typing import Annotated, Optional, get_args, get_origin
 
-from fastapi import Depends, FastAPI, HTTPException, Query, status
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from biokb_coconut.api import schemas

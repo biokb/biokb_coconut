@@ -1,8 +1,6 @@
-from typing import Annotated, List, Literal, Optional
+from typing import Annotated, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
-
-from biokb_coconut import constants
 
 
 class OffsetLimit(BaseModel):

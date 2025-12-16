@@ -1,5 +1,3 @@
-from ast import Name
-
 from rdflib.namespace import Namespace
 
 BASE_URI = "https://biokb.scai.fraunhofer.de/coconut/"
