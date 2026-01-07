@@ -1,8 +1,8 @@
 """Basic constants."""
 
 import os
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 # standard for all biokb projects, but individual set
 PROJECT_NAME = "coconut"

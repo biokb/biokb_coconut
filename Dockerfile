@@ -1,13 +1,7 @@
-FROM python:3.12-alpine
-
-# Set the working directory inside the container
+FROM python:3.13-alpine
 WORKDIR /code
-
-# Copy code
 COPY src ./src/
 COPY pyproject.toml README.md ./
-
 RUN pip install .
-
-# Start fastapi server
+RUN mkdir -p /root/.biokb/chebi
 CMD ["fastapi", "run","src/biokb_coconut/api/main.py"]

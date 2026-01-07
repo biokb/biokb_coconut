@@ -50,15 +50,17 @@ class Neo4jImporter:
             2. Environment variables (NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD)
             3. Module-level constants (NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD)
         """
-        self.neo4j_uri = neo4j_uri or getenv("NEO4J_URI", NEO4J_URI)
-        self.neo4j_user = neo4j_user or getenv("NEO4J_USER", NEO4J_USER)
-        self.neo4j_pwd = neo4j_pwd or getenv("NEO4J_PASSWORD", NEO4J_PASSWORD)
+        self.neo4j_uri = neo4j_uri if neo4j_uri else getenv("NEO4J_URI", NEO4J_URI)
+        self.neo4j_user = neo4j_user if neo4j_user else getenv("NEO4J_USER", NEO4J_USER)
+        self.neo4j_pwd = (
+            neo4j_pwd if neo4j_pwd else getenv("NEO4J_PASSWORD", NEO4J_PASSWORD)
+        )
 
         self.driver = GraphDatabase.driver(
             self.neo4j_uri, auth=(self.neo4j_user, self.neo4j_pwd)
         )
 
-    def _delete_nodes_with_label(self, node_label: str = BASIC_NODE_LABEL):
+    def _delete_nodes_with_label(self, node_label: str = BASIC_NODE_LABEL) -> None:
         """Delete an existing graph in Neo4J with label <node_label>. Also deletes orphaned Resource nodes.
 
         Args:
@@ -82,7 +84,8 @@ class Neo4jImporter:
 
         Args:
             path_or_list (str | list[str]): Path to the turtle file, list of files, or zip file.
-            delete_nodes_label (str | None): If provided, delete nodes with this label before import.
+            delete_nodes_label (str | None): If provided, delete nodes with this label
+                                             before import.
 
         Returns:
             bool: True if import is successful.
@@ -107,12 +110,14 @@ class Neo4jImporter:
                     pbar.set_description(f"Processing {ttl_file}")
                     neo4j_db.parse(ttl_file, format="ttl")
         elif path_or_list.endswith(".zip"):
-            self.__import_turtle_files_from_zip(path, neo4j_db)
+            self.__import_turtle_files_from_zip(path_or_list, neo4j_db)
         neo4j_db.close(True)
 
         return True
 
-    def __import_turtle_files_from_zip(self, path_ttl_file_or_zip, neo4j_db):
+    def __import_turtle_files_from_zip(
+        self, path_ttl_file_or_zip: str, neo4j_db: Graph
+    ) -> None:
         """Import turtle files from a zip file into Neo4J.
         Args:
             path_ttl_file_or_zip (str): Path to the zip file containing turtle files.
@@ -157,7 +162,7 @@ class Neo4jImporter:
         """Import all turtle file in Neo4J from zipped turtle files.
 
         Args:
-            delete_existing_graph (bool): Whether to delete existing graph before import.
+            delete_existing_graph (bool): Whether to delete graph before import.
         Returns:
             bool: True if import is successful."""
         logger.info("Start importing all turtle file in Neo4J.")

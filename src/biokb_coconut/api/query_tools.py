@@ -2,11 +2,13 @@ import logging
 import sys
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional, Union, get_args, get_origin
+from typing import Sequence, Type, TypeAlias, Union, get_args, get_origin
 
 from pydantic import BaseModel
 from sqlalchemy import func, inspect, select
 from sqlalchemy.orm import Session, selectinload
+
+from biokb_coconut.db import models
 
 # Configure logging
 logging.basicConfig(
@@ -15,12 +17,17 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 from sqlalchemy.dialects import mysql
 
+SASearchResults: TypeAlias = dict[
+    str,
+    int | Sequence[models.Base] | None,
+]
+
 
 def build_dynamic_query(
     search_obj: BaseModel,
-    model_cls,
+    model_cls: Type[models.Base],
     db: Session,
-):
+) -> SASearchResults | dict[str, str]:
     try:
         return _build_dynamic_query(
             search_obj=search_obj,
@@ -33,21 +40,11 @@ def build_dynamic_query(
         return {"error": str(e)}
 
 
-def model_has_fk_to_other_model(model_cls, other_model_cls) -> bool:
-    """Check if the table has a foreign key to table brenda_reference"""
-    mapper = inspect(model_cls)
-    for column in mapper.columns:
-        for fk in column.foreign_keys:
-            if fk.column.table.name == other_model_cls.__tablename__:
-                return True
-    return False
-
-
 def _build_dynamic_query(
     search_obj: BaseModel,
-    model_cls,
+    model_cls: Type[models.Base],
     db: Session,
-):
+) -> SASearchResults:
     """
     Build and execute a SQLAlchemy 2.0-style SELECT based on the non-None
     attributes of a Pydantic model instance.  The operator is inferred from

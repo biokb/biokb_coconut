@@ -1,3 +1,9 @@
+"""This module contains the SQLAlchemy ORM models for the biokb_coconut database.
+
+Each class in this module represents a table in the database, with attributes corresponding
+to the columns of the table. Relationships between tables are defined using SQLAlchemy's
+relationship function."""
+
 from typing import Optional
 
 from sqlalchemy import Column, ForeignKey, Index, Integer, String, Text
@@ -20,7 +26,12 @@ class OnlyName:
 
 # many-to-many association tables
 class CompoundOrganism(Base):
-    """Joining table for Compound and Organism many-to-many relationship."""
+    """Joining table for Compound and Organism many-to-many relationship.
+
+    Attributes:
+        compound_id (int): Foreign key to the compound table.
+        organism_id (int): Foreign key to the organism table.
+    """
 
     __tablename__ = Base.table_prefix + "compound__organism"
 
@@ -33,7 +44,12 @@ class CompoundOrganism(Base):
 
 
 class CompoundCollection(Base):
-    """Joining table for Compound and Collection many-to-many relationship."""
+    """Joining table for Compound and Collection many-to-many relationship.
+
+    Attributes:
+        compound_id (int): Foreign key to the compound table.
+        collection_id (int): Foreign key to the collection table.
+    """
 
     __tablename__ = Base.table_prefix + "compound__collection"
 
@@ -46,7 +62,12 @@ class CompoundCollection(Base):
 
 
 class CompoundSynonym(Base):
-    """Joining table for Compound and Synonym many-to-many relationship."""
+    """Joining table for Compound and Synonym many-to-many relationship.
+
+    Attributes:
+        compound_id (int): Foreign key to the compound table.
+        synonym_id (int): Foreign key to the synonym table.
+    """
 
     __tablename__ = Base.table_prefix + "compound__synonym"
 
@@ -59,7 +80,12 @@ class CompoundSynonym(Base):
 
 
 class CompoundCAS(Base):
-    """Joining table for Compound and CAS many-to-many relationship."""
+    """Joining table for Compound and CAS many-to-many relationship.
+
+    Attributes:
+        compound_id (int): Foreign key to the compound table.
+        cas_number_id (int): Foreign key to the cas table.
+    """
 
     __tablename__ = Base.table_prefix + "compound_cas"
 
@@ -72,7 +98,12 @@ class CompoundCAS(Base):
 
 
 class CompoundDOI(Base):
-    """Joining table for Compound and DOI many-to-many relationship."""
+    """Joining table for Compound and DOI many-to-many relationship.
+
+    Attributes:
+        compound_id (int): Foreign key to the compound table.
+        doi_id (int): Foreign key to the doi table.
+    """
 
     __tablename__ = Base.table_prefix + "compound_doi"
 
@@ -86,6 +117,63 @@ class CompoundDOI(Base):
 
 # other tables
 class Compound(Base):
+    """Class definition for table compound.
+
+    Attributes:
+        id (int): Primary key.
+        identifier (str): Unique identifier for the compound.
+        canonical_smiles (str): Canonical SMILES representation of the compound.
+        standard_inchi (str): Standard InChI representation of the compound.
+        standard_inchi_key (str): Standard InChI Key of the compound.
+        name (Optional[str]): Name of the compound.
+        iupac_name (Optional[str]): IUPAC name of the compound.
+        annotation_level (int): Annotation level of the compound.
+        total_atom_count (int): Total atom count of the compound.
+        heavy_atom_count (int): Heavy atom count of the compound.
+        molecular_weight (float): Molecular weight of the compound.
+        exact_molecular_weight (float): Exact molecular weight of the compound.
+        molecular_formula (str): Molecular formula of the compound.
+        alogp (float): ALogP value of the compound.
+        topological_polar_surface_area (float): Topological polar surface area of the compound.
+        rotatable_bond_count (int): Rotatable bond count of the compound.
+        hydrogen_bond_acceptors (int): Number of hydrogen bond acceptors.
+        hydrogen_bond_donors (int): Number of hydrogen bond donors.
+        hydrogen_bond_acceptors_lipinski (int): Number of hydrogen bond acceptors according to Lipinski's rule.
+        hydrogen_bond_donors_lipinski (int): Number of hydrogen bond donors according to Lipinski's rule.
+        lipinski_rule_of_five_violations (int): Number of Lipinski's rule of five violations.
+        aromatic_rings_count (int): Aromatic rings count of the compound.
+        qed_drug_likeliness (float): QED drug-likeliness score of the compound.
+        formal_charge (int): Formal charge of the compound.
+        fractioncsp3 (float): Fraction of sp3 hybridized carbons in the compound.
+        number_of_minimal_rings (int): Number of minimal rings in the compound.
+        van_der_walls_volume (Optional[float]): Van der Waals volume of the compound.
+        contains_sugar (Optional[bool]): Indicates if the compound contains sugar.
+        contains_ring_sugars (bool): Indicates if the compound contains ring sugars.
+        contains_linear_sugars (bool): Indicates if the compound contains linear sugars.
+        murcko_framework (Optional[str]): Murcko framework of the compound.
+        np_likeness (float): Natural product-likeness score of the compound.
+        np_classifier_is_glycoside (Optional[bool]): Indicates if the compound is classified as a glycoside by the NP classifier.
+        chemical_class_id (Optional[int]): Foreign key to the chemical class table.
+        chemical_sub_class_id (Optional[int]): Foreign key to the chemical sub-class table.
+        direct_parent_classification_id (Optional[int]): Foreign key to the direct parent classification table.
+        chemical_super_class_id (Optional[int]): Foreign key to the chemical super-class table.
+        np_classifier_pathway_id (Optional[int]): Foreign key to the NP classifier pathway table.
+        np_classifier_superclass_id (Optional[int]): Foreign key to the NP classifier superclass table.
+        np_classifier_class_id (Optional[int]): Foreign key to the NP classifier class table.
+        chemical_class (Optional[ChemicalClass]): Relationship to the chemical class.
+        chemical_sub_class (Optional[ChemicalSubClass]): Relationship to the chemical sub-class.
+        direct_parent_classification (Optional[DirectParentClassification]): Relationship to the direct parent classification.
+        chemical_super_class (Optional[ChemicalSuperClass]): Relationship to the chemical super-class.
+        np_classifier_pathway (Optional[NpClassifierPathway]): Relationship to the NP classifier pathway.
+        np_classifier_superclass (Optional[NpClassifierSuperclass]): Relationship to the NP classifier superclass.
+        np_classifier_class (Optional[NpClassifierClass]): Relationship to the NP classifier class.
+        organisms (list[Organism]): List of organisms associated with the compound.
+        collections (list[Collection]): List of collections associated with the compound.
+        dois (list[DOI]): List of DOIs associated with the compound.
+        synonyms (list[Synonym]): List of synonyms associated with the compound.
+        cas_numbers (list[CAS]): List of CAS numbers associated with the compound.
+    """
+
     __tablename__ = Base.table_prefix + "compound"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -191,6 +279,14 @@ class Compound(Base):
 
 
 class NpClassifierPathway(Base, OnlyName):
+    """Natural Product Classifier Pathway model.
+
+    Attributes:
+        id (int): Primary key.
+        name (str): Unique name of the NP classifier pathway.
+        compounds (list[Compound]): List of compounds associated with this pathway.
+    """
+
     __tablename__ = Base.table_prefix + "np_classifier_pathway"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -209,6 +305,14 @@ class NpClassifierPathway(Base, OnlyName):
 
 
 class NpClassifierSuperclass(Base, OnlyName):
+    """Natural Product Classifier Superclass model.
+
+    Attributes:
+        id (int): Primary key.
+        name (str): Unique name of the NP classifier superclass.
+        compounds (list[Compound]): List of compounds associated with this superclass.
+    """
+
     __tablename__ = Base.table_prefix + "np_classifier_superclass"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -227,6 +331,14 @@ class NpClassifierSuperclass(Base, OnlyName):
 
 
 class NpClassifierClass(Base, OnlyName):
+    """Natural Product Classifier Class model.
+
+    Attributes:
+        id (int): Primary key.
+        name (str): Unique name of the NP classifier class.
+        compounds (list[Compound]): List of compounds associated with this class.
+    """
+
     __tablename__ = Base.table_prefix + "np_classifier_class"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -245,6 +357,14 @@ class NpClassifierClass(Base, OnlyName):
 
 
 class ChemicalClass(Base, OnlyName):
+    """Chemical Class model.
+
+    Attributes:
+        id (int): Primary key.
+        name (str): Unique name of the chemical class.
+        compounds (list[Compound]): List of compounds associated with this class.
+    """
+
     __tablename__ = Base.table_prefix + "chemical_class"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -261,6 +381,14 @@ class ChemicalClass(Base, OnlyName):
 
 
 class ChemicalSubClass(Base, OnlyName):
+    """Chemical Sub-Class model.
+
+    Attributes:
+        id (int): Primary key.
+        name (str): Unique name of the chemical sub-class.
+        compounds (list[Compound]): List of compounds associated with this sub-class.
+    """
+
     __tablename__ = Base.table_prefix + "chemical_sub_class"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -279,6 +407,14 @@ class ChemicalSubClass(Base, OnlyName):
 
 
 class DirectParentClassification(Base, OnlyName):
+    """Direct Parent Classification model.
+
+    Attributes:
+        id (int): Primary key.
+        name (str): Unique name of the direct parent classification.
+        compounds (list[Compound]): List of compounds associated with this classification.
+    """
+
     __tablename__ = Base.table_prefix + "direct_parent_classification"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -297,6 +433,14 @@ class DirectParentClassification(Base, OnlyName):
 
 
 class ChemicalSuperClass(Base, OnlyName):
+    """Chemical Super-Class model.
+
+    Attributes:
+        id (int): Primary key.
+        name (str): Unique name of the chemical super-class.
+        compounds (list[Compound]): List of compounds associated with this super-class.
+    """
+
     __tablename__ = Base.table_prefix + "chemical_super_class"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -315,6 +459,14 @@ class ChemicalSuperClass(Base, OnlyName):
 
 
 class DOI(Base):
+    """Class definition for table doi.
+
+    Attributes:
+        id (int): Primary key.
+        identifier (str): Unique identifier for the DOI.
+        compounds (list[Compound]): List of compounds associated with this DOI.
+    """
+
     __tablename__ = Base.table_prefix + "doi"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -331,6 +483,14 @@ class DOI(Base):
 
 
 class Synonym(Base):
+    """Class definition for table synonym.
+
+    Attributes:
+        id (int): Primary key.
+        name (str): Unique name of the synonym.
+        compounds (list[Compound]): List of compounds associated with this synonym.
+    """
+
     __tablename__ = Base.table_prefix + "synonym"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -353,6 +513,18 @@ class Synonym(Base):
 
 
 class Organism(Base):
+    """Class definition for table organism.
+
+    Attributes:
+        id (int): Primary key.
+        name (str): Name of the organism.
+        tax_id (Optional[int]): NCBI taxonomy identifier.
+        ipni_id (Optional[str]): IPNI identifier.
+        wcvp_id (Optional[int]): WCVP identifier.
+        powo_id (Optional[str]): POWO identifier.
+        compounds (list[Compound]): List of compounds associated with this organism.
+    """
+
     __tablename__ = Base.table_prefix + "organism"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -386,6 +558,14 @@ class Organism(Base):
 
 
 class Collection(Base):
+    """Class definition for table collection.
+
+    Attributes:
+        id (int): Primary key.
+        name (str): Unique name of the collection.
+        compounds (list[Compound]): List of compounds associated with this collection.
+    """
+
     __tablename__ = Base.table_prefix + "collection"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -406,6 +586,14 @@ class Collection(Base):
 
 
 class CAS(Base):
+    """Class definition for table cas.
+
+    Attributes:
+        id (int): Primary key.
+        number (str): Unique CAS number.
+        compounds (list[Compound]): List of compounds associated with this CAS number.
+    """
+
     __tablename__ = Base.table_prefix + "cas"
 
     id = Column(Integer, primary_key=True)
@@ -423,10 +611,16 @@ class CAS(Base):
 
 class TaxonomyName(Base):
     """Class definition for table taxonomy_name. Name from
-    NCBI taxonomy https://www.ncbi.nlm.nih.gov/taxonomys."""
+    NCBI taxonomy https://www.ncbi.nlm.nih.gov/taxonomys.
+
+    Attributes:
+        id (int): Primary key.
+        tax_id (int): NCBI taxonomy Identifier.
+        name (str): Name associated with the tax_id.
+        name_type (str): Type of the name (e.g., scientific name, common name, synonym).
+    """
 
     __tablename__ = Base.table_prefix + "taxonomy_name"
-    __table_args__ = {"comment": "Taxonomy names by NCBI"}
     id: Mapped[int] = mapped_column(primary_key=True)
     tax_id: Mapped[int] = mapped_column(index=True, comment="NCBI taxonomy Identifier")
     name: Mapped[str] = mapped_column(Text)
@@ -445,6 +639,17 @@ class TaxonomyName(Base):
 
 
 class WCVPPlant(Base):
+    """Class definition for table wcvp_plant. Plant names from
+    World Checklist of Vascular Plants (WCVP).
+
+    Attributes:
+        plant_name_id (int): Primary key.
+        taxon_name (Optional[str]): Taxon name of the plant.
+        accepted_plant_name_id (Optional[int]): Accepted plant name identifier.
+        powo_id (Optional[str]): POWO identifier.
+        ipni_id (Optional[str]): IPNI identifier.
+    """
+
     __tablename__ = Base.table_prefix + "wcvp_plant"
     plant_name_id: Mapped[int] = mapped_column(primary_key=True)
     taxon_name: Mapped[Optional[str]] = mapped_column(Text)

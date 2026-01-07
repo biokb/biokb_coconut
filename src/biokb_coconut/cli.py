@@ -13,7 +13,7 @@ from biokb_coconut.rdf.turtle import TurtleCreator
 
 @click.group()
 @click.version_option(__version__)
-def main():
+def main() -> None:
     """Import in RDBMS, create turtle files and import into Neo4J.
 
     Please follow the steps:\n
@@ -100,7 +100,7 @@ def create_ttls(connection_string: str = f"sqlite:///{PROJECT_NAME}.db") -> None
 @click.option("--password", "-p", required=True, help="Neo4j password")
 def import_neo4j(
     password: str, uri: str = "bolt://localhost:7687", user: str = NEO4J_USER
-):
+) -> None:
     """Import TTL files into Neo4j database."""
     Neo4jImporter(neo4j_uri=uri, neo4j_user=user, neo4j_pwd=password).import_ttls()
 

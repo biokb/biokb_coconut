@@ -1,32 +1,69 @@
-"""Module to create RDF turtle files from the WCVP (World Checklist of Vascular Plants) data.
+"""Module to create RDF turtle files from the WCVP
+(World Checklist of Vascular Plants) data.
 
-This module provides functionality to export taxonomic and geographic data from a SQL database
-into RDF Turtle format, suitable for semantic web applications and knowledge graphs.
+This module provides functionality to export taxonomic and geographic data from a
+SQL database into RDF Turtle format, suitable for semantic web applications and
+knowledge graphs.
 
-Reasons for excluding compounds:
+Compound Filtering Rationale:
 
-| COCONUT Parameter | Threshold for Very Low Potential | Related Lipinski Rule (Ro5) | Why it Hinders Wound Healing Drug Action |
-| :--- | :--- | :--- | :--- |
-| **`lipinski_rule_of_five_violations`** | $>= 2$ Violations | The overall rule compliance. | **Poor Absorption:** Two or more violations strongly predict that the molecule will be too large or too polar to achieve passive diffusion, resulting in very low concentrations reaching the deep dermis from topical application. |
-| **`molecular_weight`** | $> 500$ Daltons (Da) | Molecular weight $<= 500$ Da. | **Low Skin Penetration:** Compounds over 500 Da generally cannot cross the **stratum corneum** (the outermost skin barrier) by passive diffusion, severely limiting their ability to reach the wound site. |
-| **`hydrogen_bond_donors_lipinski` (HBD)** | $> 5$ | HBD $<= 5$. | **High Polarity/Desolvation:** Too many HBDs increase the energy needed for the molecule to shed its surrounding water molecules (desolvation), making it energetically unfavorable to partition into the lipid bilayer of cell membranes. |
-| **`hydrogen_bond_acceptors_lipinski` (HBA)** | $> 10$ | HBA $<= 10$. | **High Polarity/Solubility:** Similar to HBD, too many acceptors anchor the molecule strongly to the aqueous environment, preventing it from crossing the lipid-rich barriers in the skin. |
-| **`alogp`** | $> 5$ | $\text{cLogP} <= 5$. | **Excessive Lipophilicity:** While some lipophilicity is needed, an $\text{alogP}$ over 5 means the compound is too fat-soluble. This can lead to poor solubility in formulation vehicles and potential non-specific binding/accumulation in fatty tissues, leading to poor systemic availability or toxicity. |
-| **`topological_polar_surface_area` (TPSA)** | $> 140 A°2 | Not directly in Ro5, but strongly related to HBD/HBA. | **Low Permeability:** TPSA quantifies the polar surface. Values over $140 A°^2 are strongly correlated with very poor passive permeability across biological membranes, including the skin. |
-| **`qed_drug_likeliness`** | $< 0.67$ | Overall measure of drug quality. | **Low Overall Quality:** This score integrates the crucial physicochemical factors. A low score suggests the molecule possesses characteristics that make it significantly less "drug-like" compared to established medicines. |
+The compound filtering is based on drug-likeness criteria derived from Lipinski's
+Rule of Five and additional pharmaceutical parameters. Compounds are excluded when
+they violate multiple drug-likeness criteria.
 
-Would you like me to use the search tool to find the actual Lipinski rule values for a specific natural product used in wound healing, like Curcumin?
+Exclusion Criteria:
+
+• lipinski_rule_of_five_violations > 1: Multiple violations indicate poor
+    drug-like behavior and unfavorable absorption/distribution properties
+
+• molecular_weight > 500 Da: Follows Lipinski's rule. Larger compounds exhibit
+    poor absorption and cannot cross biological membranes effectively
+
+• hydrogen_bond_donors_lipinski > 5: Excessive hydrogen bonding prevents
+    effective lipid bilayer crossing and reduces membrane permeability
+
+• hydrogen_bond_acceptors_lipinski > 10: Too many acceptor sites increase
+    polarity and impair passive diffusion through cellular membranes
+
+• alogp > 5: Excessive lipophilicity causes poor aqueous solubility and
+    potential toxicity issues while affecting formulation stability
+
+• topological_polar_surface_area > 140 Ų: Values above this threshold
+    typically indicate poor passive absorption and membrane permeability
+
+• qed_drug_likeliness < 0.67: Low drug quality estimation combining multiple
+    molecular descriptors to predict drug-like characteristics
+
+Pharmaceutical Impact:
+
+• Poor absorption: Multiple violations predict inadequate passive diffusion
+    across intestinal epithelium
+
+• Low skin penetration: Compounds exceeding 500 Da cannot effectively traverse
+    the stratum corneum barrier
+
+• High polarity issues: Excessive hydrogen bonding prevents lipid bilayer
+    crossing
+
+• Excessive lipophilicity: Poor solubility and potential toxicity concerns
+
+• Low permeability: TPSA above 140 Ų strongly correlates with poor membrane
+    passage
+
+• Overall low drug quality: QED below 0.67 indicates unfavorable drug-like
+    characteristics
 """
 
 import logging
 import os.path
 import re
 import shutil
-from typing import List, Optional, Type, TypeVar
+from typing import List, Optional, Sequence, Type, TypeVar
 
 from rdflib import RDF, XSD, Graph, Literal, Namespace, URIRef
-from sqlalchemy import Engine, create_engine, event, select
+from sqlalchemy import Engine, create_engine, select
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.sql.elements import ColumnElement
 from tqdm import tqdm
 
 from biokb_coconut import constants
@@ -83,7 +120,8 @@ def get_empty_graph() -> Graph:
 
 def get_rel_name(model: Type[models.OnlyName]) -> str:
     """
-    Convert a SQLAlchemy model class name to a relationship name in uppercase snake case with underscores.
+    Convert a SQLAlchemy model class name to a relationship name in uppercase snake
+    case with underscores.
 
     Prefixing with "HAS_"
 
@@ -108,10 +146,11 @@ class TurtleCreator:
     """Factory class for generating RDF Turtle files from WCVP database.
 
     This class handles the export of plant taxonomic data and geographic distributions
-    from a relational database into RDF Turtle format for use in semantic web applications.
+    from a relational database into RDF Turtle format for use in semantic
+    web applications.
     """
 
-    compound_filter = (
+    compound_filter: Sequence[ColumnElement[bool]] = (
         models.Compound.lipinski_rule_of_five_violations <= 1,
         models.Compound.hydrogen_bond_donors_lipinski <= 5,
         models.Compound.hydrogen_bond_acceptors_lipinski <= 10,
@@ -155,7 +194,7 @@ class TurtleCreator:
         logging.info(f"Turtle files successfully packaged in {path_to_zip_file}")
         return path_to_zip_file
 
-    def _create_organisms_with_links(self):
+    def _create_organisms_with_links(self) -> None:
         logging.info("Creating RDF organisms turtle file.")
         org_ns = get_namespace(models.Organism.__name__)
         graph = get_empty_graph()
@@ -240,7 +279,7 @@ class TurtleCreator:
 
     def __create_only_name_class(
         self, model: Type[models.OnlyName], add_node_label: str | None = None
-    ):
+    ) -> None:
 
         logging.info(f"Creating RDF {model.__name__} classifiers turtle file.")
         model_namespace = get_namespace(model.__name__)
@@ -307,7 +346,7 @@ class TurtleCreator:
         graph.serialize(ttl_path, format="turtle")
         del graph
 
-    def _create_only_name_classes(self):
+    def _create_only_name_classes(self) -> None:
         list_of_models: List[Type[models.OnlyName]] = [
             models.ChemicalClass,
             models.ChemicalSubClass,
@@ -320,7 +359,7 @@ class TurtleCreator:
         for model in list_of_models:
             self.__create_only_name_class(model)
 
-    def _create_compounds(self):
+    def _create_compounds(self) -> None:
         logging.info("Creating RDF compounds turtle file.")
         graph = get_empty_graph()
 

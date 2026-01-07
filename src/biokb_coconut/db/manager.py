@@ -23,7 +23,9 @@ logger: logging.Logger = logging.getLogger(__name__)
 
 
 @event.listens_for(Engine, "connect")
-def set_sqlite_pragma(dbapi_connection, _connection_record):
+def set_sqlite_pragma(
+    dbapi_connection: sqlite3.Connection, _connection_record: object
+) -> None:
     """Enable foreign key constraint for SQLite."""
     if isinstance(dbapi_connection, sqlite3.Connection):
         cursor = dbapi_connection.cursor()
@@ -69,7 +71,7 @@ class DbManager:
         """
         return self.Session()
 
-    def set_path_to_file(self, path_to_file: str):
+    def set_path_to_file(self, path_to_file: str) -> None:
         """
         Set the path to the database file (for testing purposes).
         Args:
@@ -375,7 +377,7 @@ class DbManager:
             logger.info("Download taxonomy data")
             urllib.request.urlretrieve(constants.TAXONOMY_URL, path_to_file)
 
-    def _import_tax_names(self, keep_files: bool = False):
+    def _import_tax_names(self, keep_files: bool = False) -> None:
         """
         Import taxonomy names from NCBI taxonomy database into the local database.
         This method downloads the NCBI taxonomy dump file (taxdmp.zip), extracts the names.dmp file,
@@ -411,7 +413,7 @@ class DbManager:
             usecols=[0, 1, 3],
             names=["tax_id", "name", "name_type"],
         )
-        df.name_type = df.name_type.str[:-2]
+        df.name_type = df.name_type.str[:-2]  # type: ignore
         df.index += 1
         df.index.rename("id", inplace=True)
         df.to_sql(
@@ -426,7 +428,7 @@ class DbManager:
 
     def update_organism_tax_ids(
         self, import_taxonomy_names: bool = True, keep_files: bool = False
-    ):
+    ) -> None:
         """Update taxonomy IDs for organisms in the database.
 
         This method updates the tax_id field in the Organism table by matching
@@ -477,7 +479,7 @@ class DbManager:
             session.commit()
         models.TaxonomyName.__table__.drop(self.engine, checkfirst=True)  # type: ignore
 
-    def update_other_organism_ids_by_wcvp(self):
+    def update_other_organism_ids_by_wcvp(self) -> None:
         """
         Update organism records with external identifiers from WCVP (World Checklist of Vascular Plants).
         This method downloads and processes WCVP data to enrich organism records with additional

@@ -10,6 +10,13 @@ class OffsetLimit(BaseModel):
     offset: int = 0
 
 
+class Name(BaseModel):
+    id: int = Field(..., description="Primary key, unique identifier")
+    name: str = Field(..., description="Name")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class CompoundBase(BaseModel):
     id: int = Field(..., description="Primary key, unique identifier for the compound")
     identifier: str = Field(..., description="Unique compound identifier")
@@ -267,6 +274,13 @@ class Organism_with_compounds(OrganismBase):
 
 
 class OrganismSearch(OffsetLimit):
+    id: Optional[int] = Field(
+        None, description="Primary key, unique identifier for the organism"
+    )
+    tax_id: Optional[int] = Field(None, description="NCBI Taxonomy ID of the organism")
+    ipni_id: Optional[str] = Field(None, description="IPNI ID of the organism")
+    wcvp_id: Optional[int] = Field(None, description="WCVP ID of the organism")
+    powo_id: Optional[str] = Field(None, description="POWO ID of the organism")
     name: Optional[str] = Field(None, description="Name of the organism")
 
 
@@ -286,6 +300,9 @@ class SynonymBase(BaseModel):
 
 
 class SynonymSearch(OffsetLimit):
+    id: Optional[int] = Field(
+        None, description="Primary key, unique identifier for the synonym"
+    )
     name: Optional[str] = Field(None, description="Name of the synonym")
 
 
@@ -354,6 +371,9 @@ class Collection_with_compound_identifiers(CollectionBase):
 
 
 class CollectionSearch(OffsetLimit):
+    id: Optional[int] = Field(
+        None, description="Primary key, unique identifier for the collection"
+    )
     name: Optional[str] = Field(None, description="Name of the collection")
 
 
@@ -392,6 +412,9 @@ class ChemicalClassWithCompoundIDs(ChemicalClassBase):
 
 
 class ChemicalClassSearch(OffsetLimit):
+    id: Optional[int] = Field(
+        None, description="Primary key, unique identifier for the chemical class"
+    )
     name: Optional[str] = Field(None, description="Name of the chemical class")
 
 
@@ -421,6 +444,9 @@ class ChemicalSubClass(ChemicalSubClassBase):
 
 
 class ChemicalSubClassSearch(BaseModel):
+    id: Optional[int] = Field(
+        None, description="Primary key, unique identifier for the chemical subclass"
+    )
     name: Optional[str] = Field(None, description="Name of the chemical subclass")
 
 
@@ -461,6 +487,10 @@ class DirectParentClassificationWithCompoundIDs(DirectParentClassificationBase):
 
 
 class DirectParentClassificationSearch(OffsetLimit):
+    id: Optional[int] = Field(
+        None,
+        description="Primary key, unique identifier for the direct parent classification",
+    )
     name: Optional[str] = Field(
         None, description="Name of the direct parent classification"
     )
@@ -501,6 +531,9 @@ class ChemicalSuperClassWithCompoundIDs(ChemicalSuperClassBase):
 
 
 class ChemicalSuperClassSearch(OffsetLimit):
+    id: Optional[int] = Field(
+        None, description="Primary key, unique identifier for the chemical superclass"
+    )
     name: Optional[str] = Field(None, description="Name of the chemical superclass")
 
 
@@ -539,6 +572,9 @@ class NpClassifierPathwayWithCompoundIDs(NpClassifierPathwayBase):
 
 
 class NpClassifierPathwaySearch(OffsetLimit):
+    id: Optional[int] = Field(
+        None, description="Primary key, unique identifier for the NP classifier pathway"
+    )
     name: Optional[str] = Field(None, description="Name of the NP classifier pathway")
 
 
@@ -579,6 +615,10 @@ class NpClassifierSuperclassWithCompoundIDs(NpClassifierSuperclassBase):
 
 
 class NpClassifierSuperclassSearch(OffsetLimit):
+    id: Optional[int] = Field(
+        None,
+        description="Primary key, unique identifier for the NP classifier superclass",
+    )
     name: Optional[str] = Field(
         None, description="Name of the NP classifier superclass"
     )
@@ -619,6 +659,9 @@ class NpClassifierClassWithCompoundIDs(NpClassifierClassBase):
 
 
 class NpClassifierClassSearch(OffsetLimit):
+    id: Optional[int] = Field(
+        None, description="Primary key, unique identifier for the NP classifier class"
+    )
     name: Optional[str] = Field(None, description="Name of the NP classifier class")
 
 
