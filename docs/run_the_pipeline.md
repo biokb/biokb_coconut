@@ -1,0 +1,114 @@
+## Run BioKb-Coconut
+
+### From command line
+
+For sure the simplest way is to run all steps. After installation (see [Installation](installation.md)) just run:
+
+```bash
+biokb_coconut import-data
+biokb_coconut create-ttls
+```
+Before importing into Neo4J, make sure Neo4J is running (see below "[How to run Neo4J](how_to_run_neo4j.md)").
+
+Then import into Neo4J:
+```bash
+biokb_coconut import-neo4j -p neo4j_password
+```
+
+http://localhost:7474  (user/password: neo4j/neo4j_password)
+
+For more options see the [CLI options](cli.md) section below.
+
+
+### As RESTful API server
+
+***Usage:*** `biokb_coconut run-api [OPTIONS]`
+
+```bash
+biokb_coconut run-api
+```
+
+- ***user***: admin  
+- ***password***: admin
+
+| Option | long | Description | default |
+|--------|------|-------------|---------|
+| -P     | --port | API server port | 8000 |
+| -u     | --user     | API username | admin   |
+| -p     | --password | API password | admin | 
+
+http://localhost:8000/docs#/
+
+1. [Import data](http://localhost:8000/docs#/Database%20Management/import_data_import_data__post)
+2. [Export ttls](http://localhost:8000/docs#/Database%20Management/get_report_export_ttls__get)
+3. Run Neo4J (see below "[How to run Neo4J](#how-to-run-neo4j)")
+4. [Import Neo4J](http://localhost:8000/docs#/Database%20Management/import_neo4j_import_neo4j__get)
+
+Be patient, each step takes several minutes.
+
+
+### As Podman/Docker container
+
+For docker just replace `podman` with `docker` in the commands below.
+
+Build & run with Podman:
+```bash
+git clone https://github.com/biokb/biokb_coconut.git
+cd biokb_coconut
+podman build -t biokb_coconut_image .
+podman run -d --rm --name biokb_coconut_simple -p 8000:8000 biokb_coconut_image
+```
+
+- Login: admin  
+- Password: admin
+
+With environment variable for user and password for more security:
+```bash
+podman run -d --rm --name biokb_coconut_simple -p 8000:8000 -e API_PASSWORD=your_secure_password -e API_USER=your_secure_user biokb_coconut_image
+```
+
+http://localhost:8000/docs
+
+On the website:
+1. [Import data](http://localhost:8000/docs#/Database%20Management/import_data_import_data__post)
+2. [Export ttls](http://localhost:8000/docs#/Database%20Management/get_report_export_ttls__get)
+
+Neo4j import in this context is not possible because Neo4J is not running in the same network as service, but the exported turtles can be imported into any Neo4J instance using the CLI (`biokb_coconut import-neo4j`).
+
+to stop the container:
+```bash
+podman stop biokb_coconut_simple
+```
+to rerun the container:
+```bash
+podman start biokb_coconut_simple
+```
+
+### As Podman/Docker networked containers
+
+If you have docker or podman on your system, the easiest way to run all components (relational database, RESTful API server, phpMyAdmin GUI) is to use networked containers with `podman-compose`/`docker-compose`.
+
+```bash
+git clone https://github.com/biokb/biokb_coconut.git
+cd biokb_coconut
+podman-compose -f docker-compose.db_neo.yml --env-file .env_template up -d
+
+```
+http://localhost:8000/docs
+
+On the website:
+1. [Import data](http://localhost:8000/docs#/Database%20Management/import_data_import_data__post)
+2. [Export ttls](http://localhost:8000/docs#/Database%20Management/get_report_export_ttls__get)
+3. [Import Neo4J](http://localhost:8000/docs#/Database%20Management/import_neo4j_import_neo4j__get)
+
+stop with:
+```bash
+docker stop biokb_coconut
+```
+
+rerun with:
+```bash
+docker start biokb_coconut
+```
+
+***Tip***: Change the default passwords in the `.env_template` file before starting the containers for better security.
