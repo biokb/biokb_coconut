@@ -6,9 +6,7 @@ from typing import Optional, Union, get_args, get_origin
 
 from pydantic import BaseModel
 from sqlalchemy import func, inspect, select
-from sqlalchemy.orm import Session
-
-from biokb_coconut.db import models
+from sqlalchemy.orm import Session, selectinload
 
 # Configure logging
 logging.basicConfig(

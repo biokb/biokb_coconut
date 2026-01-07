@@ -2,16 +2,29 @@ import logging
 import os
 import secrets
 from contextlib import asynccontextmanager
+from typing import AsyncGenerator, Generator
 
-from fastapi import Depends, FastAPI, HTTPException, status
+import uvicorn
+from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session
 
 from biokb_coconut.api import schemas
 from biokb_coconut.api.query_tools import build_dynamic_query
 from biokb_coconut.api.tags import Tag
+from biokb_coconut.constants import (
+    DB_DEFAULT_CONNECTION_STR,
+    NEO4J_PASSWORD,
+    NEO4J_URI,
+    NEO4J_USER,
+    ZIPPED_TTLS_PATH,
+)
 from biokb_coconut.db import manager, models
+from biokb_coconut.rdf.neo4j_importer import Neo4jImporter
+from biokb_coconut.rdf.turtle import TurtleCreator
 
 # Configure logging
 logging.basicConfig(
@@ -23,9 +36,15 @@ USERNAME = os.environ.get("API_USERNAME", "admin")
 PASSWORD = os.environ.get("API_PASSWORD", "admin")
 
 
-def get_session():
-    dbm = manager.DbManager()
-    session: Session = dbm.Session()
+def get_engine() -> Engine:
+    conn_url = os.environ.get("CONNECTION_STR", DB_DEFAULT_CONNECTION_STR)
+    engine: Engine = create_engine(conn_url)
+    return engine
+
+
+def get_session() -> Generator[Session, None, None]:
+    engine: Engine = get_engine()
+    session = Session(bind=engine)
     try:
         yield session
     finally:
@@ -33,12 +52,12 @@ def get_session():
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
-    # dbm.drop_db()
-    dbm = manager.DbManager()
-    dbm.create_db()
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """Initialize app resources on startup and cleanup on shutdown."""
+    engine = get_engine()
+    manager.DbManager(engine)
     yield
-    # Clean up
+    # Clean up resources if needed
     pass
 
 
@@ -49,7 +68,7 @@ description = (
 app = FastAPI(
     title="RESTful API for Coconut",
     description=description,
-    version="0.0.1",
+    version="0.1.0",
     lifespan=lifespan,
 )
 
@@ -60,6 +79,15 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
+
+
+def run_server(host: str = "0.0.0.0", port: int = 8000) -> None:
+    uvicorn.run(
+        app="biokb_coconut.api.main:app",
+        host=host,
+        port=port,
+        log_level="warning",
+    )
 
 
 def verify_credentials(credentials: HTTPBasicCredentials = Depends(HTTPBasic())):
@@ -77,18 +105,106 @@ def verify_credentials(credentials: HTTPBasicCredentials = Depends(HTTPBasic()))
 # ========================
 
 
-@app.get("/", tags=["Manage"])
-def check_status() -> dict:
-    return {"msg": "Running!"}
-
-
-@app.post(path="/import_data/", tags=[Tag.DBMANAGE])
-def import_data(
+@app.post(
+    path="/import_data/",
+    response_model=dict[str, int],
+    tags=[Tag.DBMANAGE],
+)
+async def import_data(
     credentials: HTTPBasicCredentials = Depends(verify_credentials),
-):
-    """Load a tsv file in database."""
-    dbm = manager.DbManager()
-    return dbm.import_data()
+    force_download: bool = Query(
+        False,
+        description=(
+            "Whether to re-download data files even if they already exist,"
+            " ensuring the newest version."
+        ),
+    ),
+    keep_files: bool = Query(
+        True,
+        description=(
+            "Whether to keep the downloaded files"
+            " after importing them into the database."
+        ),
+    ),
+) -> dict[str, int]:
+    """Download data (if not exists) and load in database.
+
+    Can take up to 15 minutes to complete.
+    """
+    try:
+        dbm = manager.DbManager()
+        result = dbm.import_data(force_download=force_download, keep_files=keep_files)
+    except Exception as e:
+        logger.error(f"Error importing data: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error importing data. {e}",
+        ) from e
+    return result
+
+
+@app.get("/export_ttls/", tags=[Tag.DBMANAGE])
+async def get_report(
+    credentials: HTTPBasicCredentials = Depends(verify_credentials),
+    force_create: bool = Query(
+        False,
+        description="Whether to re-generate the TTL files even if they already exist.",
+    ),
+) -> FileResponse:
+
+    file_path = ZIPPED_TTLS_PATH
+    if not os.path.exists(file_path) or force_create:
+        try:
+            TurtleCreator().create_ttls()
+        except Exception as e:
+            logger.error(f"Error generating TTL files: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error generating TTL files. Data already imported?",
+            ) from e
+    return FileResponse(
+        path=file_path, filename="chebi_ttls.zip", media_type="application/zip"
+    )
+
+
+@app.get("/import_neo4j/", tags=[Tag.DBMANAGE])
+async def import_neo4j(
+    credentials: HTTPBasicCredentials = Depends(verify_credentials),
+    uri: str | None = Query(
+        NEO4J_URI,
+        description="The Neo4j URI. If not provided, "
+        "the default from environment variable is used.",
+    ),
+    user: str | None = Query(
+        NEO4J_USER,
+        description="The Neo4j user. If not provided,"
+        " the default from environment variable is used.",
+    ),
+    password: str | None = Query(
+        NEO4J_PASSWORD,
+        description="The Neo4j password. If not provided,"
+        " the default from environment variable is used.",
+    ),
+) -> dict[str, str]:
+    """Import RDF turtle files in Neo4j."""
+    try:
+        if not os.path.exists(ZIPPED_TTLS_PATH):
+            raise HTTPException(
+                status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
+                detail=(
+                    "Zipped TTL files not found. Please "
+                    "generate them first using /export_ttls/ endpoint."
+                ),
+            )
+        importer = Neo4jImporter(neo4j_uri=uri, neo4j_user=user, neo4j_pwd=password)
+        importer.import_ttls()
+    except Exception as e:
+        logger.error(f"Error importing data into Neo4j: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error importing data into Neo4j: {e}",
+        ) from e
+    return {"status": "Neo4j import completed successfully."}
 
 
 # tag: Compound
@@ -110,6 +226,22 @@ async def search_compounds(
         search_obj=search,
         model_cls=models.Compound,
         db=session,
+    )
+
+
+@app.get("/compound/", response_model=schemas.CompoundBase, tags=[Tag.COMPOUND])
+async def get_compound(
+    session: Session = Depends(get_session),
+    identifier: str = Query(..., description="Compound identifier"),
+):
+    """
+    Search compounds. Returns a list of compounds with their DOIs,
+    synonyms, organisms, collections, and CAS numbers.
+    """
+    return (
+        session.query(models.Compound)
+        .where(models.Compound.identifier == identifier)
+        .first()
     )
 
 
@@ -188,5 +320,138 @@ async def search_cas(
     return build_dynamic_query(
         search_obj=search,
         model_cls=models.CAS,
+        db=session,
+    )
+
+
+@app.get(
+    "/chemical_class/",
+    response_model=schemas.ChemicalClassSearchResult,
+    tags=[Tag.COMPOUND],
+)
+async def search_chemical_class(
+    search: schemas.ChemicalClassSearch = Depends(),
+    session: Session = Depends(get_session),
+):
+    """
+    Search CAS numbers. Returns a list of CAS numbers with their compounds.
+    """
+    return build_dynamic_query(
+        search_obj=search,
+        model_cls=models.ChemicalClass,
+        db=session,
+    )
+
+
+@app.get(
+    "/chemical_sub_class/",
+    response_model=schemas.ChemicalSubClassSearchResult,
+    tags=[Tag.COMPOUND],
+)
+async def search_chemical_sub_class(
+    search: schemas.ChemicalSubClassSearch = Depends(),
+    session: Session = Depends(get_session),
+):
+    """
+    Search chemical sub classes. Returns a list of chemical sub classes with their compounds.
+    """
+    return build_dynamic_query(
+        search_obj=search,
+        model_cls=models.ChemicalSubClass,
+        db=session,
+    )
+
+
+@app.get(
+    "/direct_parent_classification/",
+    response_model=schemas.DirectParentClassificationSearchResult,
+    tags=[Tag.COMPOUND],
+)
+async def search_direct_parent_classification(
+    search: schemas.DirectParentClassificationSearch = Depends(),
+    session: Session = Depends(get_session),
+):
+    """
+    Search direct parent classifications. Returns a list of direct parent classifications with their compounds.
+    """
+    return build_dynamic_query(
+        search_obj=search,
+        model_cls=models.DirectParentClassification,
+        db=session,
+    )
+
+
+@app.get(
+    "/chemical_super_class/",
+    response_model=schemas.ChemicalSuperClassSearchResult,
+    tags=[Tag.COMPOUND],
+)
+async def search_chemical_super_class(
+    search: schemas.ChemicalSuperClassSearch = Depends(),
+    session: Session = Depends(get_session),
+):
+    """
+    Search chemical super classes. Returns a list of chemical super classes with their compounds.
+    """
+    return build_dynamic_query(
+        search_obj=search,
+        model_cls=models.ChemicalSuperClass,
+        db=session,
+    )
+
+
+@app.get(
+    "/np_classifier_pathway/",
+    response_model=schemas.NpClassifierPathwaySearchResult,
+    tags=[Tag.COMPOUND],
+)
+async def search_np_classifier_pathway(
+    search: schemas.NpClassifierPathwaySearch = Depends(),
+    session: Session = Depends(get_session),
+):
+    """
+    Search NP classifier pathways. Returns a list of NP classifier pathways with their compounds.
+    """
+    return build_dynamic_query(
+        search_obj=search,
+        model_cls=models.NpClassifierPathway,
+        db=session,
+    )
+
+
+@app.get(
+    "/np_classifier_superclass/",
+    response_model=schemas.NpClassifierSuperclassSearchResult,
+    tags=[Tag.COMPOUND],
+)
+async def search_np_classifier_superclass(
+    search: schemas.NpClassifierSuperclassSearch = Depends(),
+    session: Session = Depends(get_session),
+):
+    """
+    Search NP classifier superclasses. Returns a list of NP classifier superclasses with their compounds.
+    """
+    return build_dynamic_query(
+        search_obj=search,
+        model_cls=models.NpClassifierSuperclass,
+        db=session,
+    )
+
+
+@app.get(
+    "/np_classifier_class/",
+    response_model=schemas.NpClassifierClassSearchResult,
+    tags=[Tag.COMPOUND],
+)
+async def search_np_classifier_class(
+    search: schemas.NpClassifierClassSearch = Depends(),
+    session: Session = Depends(get_session),
+):
+    """
+    Search NP classifier classes. Returns a list of NP classifier classes with their compounds.
+    """
+    return build_dynamic_query(
+        search_obj=search,
+        model_cls=models.NpClassifierClass,
         db=session,
     )

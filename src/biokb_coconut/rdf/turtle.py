@@ -22,22 +22,20 @@ import logging
 import os.path
 import re
 import shutil
-from os import name
-from typing import List, Type, TypeVar
-from urllib.parse import urlparse
+from typing import List, Optional, Type, TypeVar
 
 from rdflib import RDF, XSD, Graph, Literal, Namespace, URIRef
-from sqlalchemy import Engine, create_engine, select
+from sqlalchemy import Engine, create_engine, event, select
 from sqlalchemy.orm import sessionmaker
 from tqdm import tqdm
 
-logger = logging.getLogger(__name__)
-
-
 from biokb_coconut import constants
-from biokb_coconut.constants import BASIC_NODE_LABEL, TTL_EXPORT_FOLDER
+from biokb_coconut.constants import BASIC_NODE_LABEL, EXPORT_FOLDER
 from biokb_coconut.db import models
 from biokb_coconut.rdf import namespaces
+
+logger = logging.getLogger(__name__)
+
 
 # Type variable for SQLAlchemy model classes
 BaseModels = TypeVar("BaseModels", bound=models.Base)
@@ -127,12 +125,19 @@ class TurtleCreator:
         self,
         engine: Engine | None = None,
     ):
-        self.__ttls_folder = TTL_EXPORT_FOLDER
+        self.__ttls_folder = EXPORT_FOLDER
         connection_str = os.getenv(
             "CONNECTION_STR", constants.DB_DEFAULT_CONNECTION_STR
         )
         self.__engine = engine if engine else create_engine(str(connection_str))
         self.Session = sessionmaker(bind=self.__engine)
+
+    def _set_ttls_folder(self, export_to_folder: str) -> None:
+        """Sets the export folder path.
+
+        This is mainly for testing purposes.
+        """
+        self.__ttls_folder = export_to_folder
 
     def create_ttls(self) -> str:
         """Generate RDF Turtle files from the database.
@@ -140,7 +145,7 @@ class TurtleCreator:
             Path to the zip file containing all generated Turtle files.
         """
         logging.info("Starting turtle file generation process.")
-
+        os.makedirs(self.__ttls_folder, exist_ok=True)
         self._create_compounds()
         self._create_only_name_classes()
         self._create_organisms_with_links()
@@ -394,3 +399,27 @@ class TurtleCreator:
         shutil.rmtree(self.__ttls_folder)
 
         return path_to_zip_file
+
+
+def create_ttls(
+    engine: Optional[Engine] = None,
+    export_to_folder: Optional[str] = None,
+) -> str:
+    """Create all turtle files.
+
+    If engine=None tries to get the settings from config ini file
+
+    If export_to_folder=None takes the default path.
+
+    Args:
+        engine (Engine | None, optional): SQLAlchemy class. Defaults to None.
+        export_to_folder (str | None, optional): Folder to export ttl files.
+            Defaults to None.
+
+    Returns:
+        str: path zipped file with ttls.
+    """
+    ttl_creator = TurtleCreator(engine=engine)
+    if export_to_folder:
+        ttl_creator._set_ttls_folder(export_to_folder)
+    return ttl_creator.create_ttls()

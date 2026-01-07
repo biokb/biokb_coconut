@@ -1,14 +1,6 @@
 from typing import Optional
 
-from sqlalchemy import (
-    Column,
-    ForeignKey,
-    Index,
-    Integer,
-    String,
-    Text,
-    UniqueConstraint,
-)
+from sqlalchemy import Column, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from biokb_coconut import constants
@@ -28,7 +20,9 @@ class OnlyName:
 
 # many-to-many association tables
 class CompoundOrganism(Base):
-    __tablename__ = Base.table_prefix + "compound_organism"
+    """Joining table for Compound and Organism many-to-many relationship."""
+
+    __tablename__ = Base.table_prefix + "compound__organism"
 
     compound_id: Mapped[int] = mapped_column(
         ForeignKey(Base.table_prefix + "compound.id"), primary_key=True
@@ -39,7 +33,9 @@ class CompoundOrganism(Base):
 
 
 class CompoundCollection(Base):
-    __tablename__ = Base.table_prefix + "compound_collection"
+    """Joining table for Compound and Collection many-to-many relationship."""
+
+    __tablename__ = Base.table_prefix + "compound__collection"
 
     compound_id: Mapped[int] = mapped_column(
         ForeignKey(Base.table_prefix + "compound.id"), primary_key=True
@@ -50,7 +46,9 @@ class CompoundCollection(Base):
 
 
 class CompoundSynonym(Base):
-    __tablename__ = Base.table_prefix + "compound_synonym"
+    """Joining table for Compound and Synonym many-to-many relationship."""
+
+    __tablename__ = Base.table_prefix + "compound__synonym"
 
     compound_id: Mapped[int] = mapped_column(
         ForeignKey(Base.table_prefix + "compound.id"), primary_key=True
@@ -61,6 +59,8 @@ class CompoundSynonym(Base):
 
 
 class CompoundCAS(Base):
+    """Joining table for Compound and CAS many-to-many relationship."""
+
     __tablename__ = Base.table_prefix + "compound_cas"
 
     compound_id: Mapped[int] = mapped_column(
@@ -72,6 +72,8 @@ class CompoundCAS(Base):
 
 
 class CompoundDOI(Base):
+    """Joining table for Compound and DOI many-to-many relationship."""
+
     __tablename__ = Base.table_prefix + "compound_doi"
 
     compound_id: Mapped[int] = mapped_column(
@@ -118,15 +120,6 @@ class Compound(Base):
     contains_linear_sugars: Mapped[bool]
     murcko_framework: Mapped[Optional[str]] = mapped_column(Text)
     np_likeness: Mapped[float]
-    np_classifier_pathway_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey(Base.table_prefix + "np_classifier_pathway.id")
-    )
-    np_classifier_superclass_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey(Base.table_prefix + "np_classifier_superclass.id")
-    )
-    np_classifier_class_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey(Base.table_prefix + "np_classifier_class.id")
-    )
     np_classifier_is_glycoside: Mapped[Optional[bool]]
 
     # foreign keys to classification tables
@@ -142,6 +135,16 @@ class Compound(Base):
     chemical_super_class_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey(Base.table_prefix + "chemical_super_class.id")
     )
+    np_classifier_pathway_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey(Base.table_prefix + "np_classifier_pathway.id")
+    )
+    np_classifier_superclass_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey(Base.table_prefix + "np_classifier_superclass.id")
+    )
+    np_classifier_class_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey(Base.table_prefix + "np_classifier_class.id")
+    )
+
     # relationships
     chemical_class: Mapped[Optional["ChemicalClass"]] = relationship(
         back_populates="compounds"
@@ -164,7 +167,7 @@ class Compound(Base):
     np_classifier_class: Mapped[Optional["NpClassifierClass"]] = relationship(
         back_populates="compounds"
     )
-
+    # many-to-many relationships
     organisms: Mapped[list["Organism"]] = relationship(
         secondary=CompoundOrganism.__table__, back_populates="compounds"
     )
@@ -181,6 +184,11 @@ class Compound(Base):
         secondary=CompoundCAS.__table__, back_populates="compounds"
     )
 
+    def __repr__(self) -> str:
+        return (
+            f"<Compound(id={self.id}, name={self.name}, identifier={self.identifier})>"
+        )
+
 
 class NpClassifierPathway(Base, OnlyName):
     __tablename__ = Base.table_prefix + "np_classifier_pathway"
@@ -191,6 +199,13 @@ class NpClassifierPathway(Base, OnlyName):
     compounds: Mapped[list["Compound"]] = relationship(
         back_populates="np_classifier_pathway"
     )
+
+    @property
+    def compound_identifiers(self) -> list[str]:
+        return [compound.identifier for compound in self.compounds]
+
+    def __repr__(self) -> str:
+        return f"<NpClassifierPathway(id={self.id}, name={self.name})>"
 
 
 class NpClassifierSuperclass(Base, OnlyName):
@@ -203,6 +218,13 @@ class NpClassifierSuperclass(Base, OnlyName):
         back_populates="np_classifier_superclass"
     )
 
+    @property
+    def compound_identifiers(self) -> list[str]:
+        return [compound.identifier for compound in self.compounds]
+
+    def __repr__(self) -> str:
+        return f"<NpClassifierSuperclass(id={self.id}, name={self.name})>"
+
 
 class NpClassifierClass(Base, OnlyName):
     __tablename__ = Base.table_prefix + "np_classifier_class"
@@ -214,6 +236,13 @@ class NpClassifierClass(Base, OnlyName):
         back_populates="np_classifier_class"
     )
 
+    @property
+    def compound_identifiers(self) -> list[str]:
+        return [compound.identifier for compound in self.compounds]
+
+    def __repr__(self) -> str:
+        return f"<NpClassifierClass(id={self.id}, name={self.name})>"
+
 
 class ChemicalClass(Base, OnlyName):
     __tablename__ = Base.table_prefix + "chemical_class"
@@ -222,6 +251,13 @@ class ChemicalClass(Base, OnlyName):
     name: Mapped[str] = mapped_column(String(255), unique=True)
 
     compounds: Mapped[list["Compound"]] = relationship(back_populates="chemical_class")
+
+    @property
+    def compound_identifiers(self) -> list[str]:
+        return [compound.identifier for compound in self.compounds]
+
+    def __repr__(self) -> str:
+        return f"<ChemicalClass(id={self.id}, name={self.name})>"
 
 
 class ChemicalSubClass(Base, OnlyName):
@@ -234,6 +270,13 @@ class ChemicalSubClass(Base, OnlyName):
         back_populates="chemical_sub_class"
     )
 
+    @property
+    def compound_identifiers(self) -> list[str]:
+        return [compound.identifier for compound in self.compounds]
+
+    def __repr__(self) -> str:
+        return f"<ChemicalSubClass(id={self.id}, name={self.name})>"
+
 
 class DirectParentClassification(Base, OnlyName):
     __tablename__ = Base.table_prefix + "direct_parent_classification"
@@ -245,6 +288,13 @@ class DirectParentClassification(Base, OnlyName):
         back_populates="direct_parent_classification"
     )
 
+    @property
+    def compound_identifiers(self) -> list[str]:
+        return [compound.identifier for compound in self.compounds]
+
+    def __repr__(self) -> str:
+        return f"<DirectParentClassification(id={self.id}, name={self.name})>"
+
 
 class ChemicalSuperClass(Base, OnlyName):
     __tablename__ = Base.table_prefix + "chemical_super_class"
@@ -255,6 +305,13 @@ class ChemicalSuperClass(Base, OnlyName):
     compounds: Mapped[list["Compound"]] = relationship(
         back_populates="chemical_super_class"
     )
+
+    @property
+    def compound_identifiers(self) -> list[str]:
+        return [compound.identifier for compound in self.compounds]
+
+    def __repr__(self) -> str:
+        return f"<ChemicalSuperClass(id={self.id}, name={self.name})>"
 
 
 class DOI(Base):
@@ -269,6 +326,9 @@ class DOI(Base):
         secondary=CompoundDOI.__table__, back_populates="dois"
     )
 
+    def __repr__(self) -> str:
+        return f"<DOI(id={self.id}, identifier={self.identifier})>"
+
 
 class Synonym(Base):
     __tablename__ = Base.table_prefix + "synonym"
@@ -277,10 +337,19 @@ class Synonym(Base):
     name: Mapped[str] = mapped_column(
         String(1000).with_variant(String(1000, collation="utf8mb4_bin"), "mysql")
     )
+
+    @property
+    def compound_identifiers(self) -> list[str]:
+        return [compound.identifier for compound in self.compounds]
+
+    # m2m relationship
     compounds: Mapped[list["Compound"]] = relationship(
         secondary=CompoundSynonym.__table__, back_populates="synonyms"
     )
     __table_args__ = (Index("uq_my_model_name", "name", unique=True, mysql_length=768),)
+
+    def __repr__(self) -> str:
+        return f"<Synonym(id={self.id}, name={self.name})>"
 
 
 class Organism(Base):
@@ -300,6 +369,10 @@ class Organism(Base):
         secondary=CompoundOrganism.__table__, back_populates="organisms"
     )
 
+    @property
+    def compound_identifiers(self) -> list[str]:
+        return [compound.identifier for compound in self.compounds]
+
     __table_args__ = (
         Index(
             f"ux_{__tablename__}__name",
@@ -307,6 +380,9 @@ class Organism(Base):
             mysql_length=255,
         ),
     )
+
+    def __repr__(self) -> str:
+        return f"<Organism(id={self.id}, name={self.name}, tax_id={self.tax_id})>"
 
 
 class Collection(Base):
@@ -322,8 +398,11 @@ class Collection(Base):
     )
 
     @property
-    def compound_identifiers(self):
+    def compound_identifiers(self) -> list[str]:
         return [compound.identifier for compound in self.compounds]
+
+    def __repr__(self) -> str:
+        return f"<Collection(id={self.id}, name={self.name})>"
 
 
 class CAS(Base):
@@ -337,6 +416,9 @@ class CAS(Base):
     compounds: Mapped[list["Compound"]] = relationship(
         secondary=CompoundCAS.__table__, back_populates="cas_numbers"
     )
+
+    def __repr__(self) -> str:
+        return f"<CAS(id={self.id}, number={self.number})>"
 
 
 class TaxonomyName(Base):
@@ -358,6 +440,9 @@ class TaxonomyName(Base):
         ),
     )
 
+    def __repr__(self) -> str:
+        return f"<TaxonomyName(id={self.id}, tax_id={self.tax_id}, name={self.name}, name_type={self.name_type})>"
+
 
 class WCVPPlant(Base):
     __tablename__ = Base.table_prefix + "wcvp_plant"
@@ -374,3 +459,6 @@ class WCVPPlant(Base):
             mysql_length=255,
         ),
     )
+
+    def __repr__(self) -> str:
+        return f"<WCVPPlant(plant_name_id={self.plant_name_id}, taxon_name={self.taxon_name})>"
