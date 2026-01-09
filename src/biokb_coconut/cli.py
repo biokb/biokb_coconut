@@ -57,7 +57,7 @@ def import_data(
 
     Args:
         force_download (bool): Force re-download of the source file (default: False)
-        connection_string (str): SQLAlchemy engine URL (default: sqlite:///chebi.db)
+        connection_string (str): SQLAlchemy engine URL (default: sqlite:///coconut.db)
         keep_files (bool): Keep downloaded source files after import (default: False)
     """
     engine = create_engine(connection_string)
@@ -79,7 +79,7 @@ def create_ttls(connection_string: str = f"sqlite:///{PROJECT_NAME}.db") -> None
     """Create TTL files from local database.
 
     Args:
-        connection_string (str): SQLAlchemy engine URL (default: sqlite:///chebi.db)
+        connection_string (str): SQLAlchemy engine URL (default: sqlite:///coconut.db)
     """
     path_to_zip = TurtleCreator(create_engine(connection_string)).create_ttls()
     click.echo(
@@ -129,7 +129,8 @@ def run_api(
     # set env variables for API authentication
     os.environ["API_USER"] = user
     os.environ["API_PASSWORD"] = password
-    click.echo(f"API server running at http://{host}:{port}/docs#/")
+    host_shown = "127.0.0.1" if host == "0.0.0.0" else host
+    click.echo(f"API server running at http://{host_shown}:{port}/docs#/")
     run_server(host=host, port=port)
 
 

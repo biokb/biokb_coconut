@@ -166,7 +166,7 @@ async def get_report(
                 detail="Error generating TTL files. Data already imported?",
             ) from e
     return FileResponse(
-        path=file_path, filename="chebi_ttls.zip", media_type="application/zip"
+        path=file_path, filename="coconut_ttls.zip", media_type="application/zip"
     )
 
 
