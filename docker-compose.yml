@@ -17,9 +17,3 @@ networks:
   default:
     name: biokb_network
     external: true
-
-
-
-
-
-
