@@ -146,7 +146,7 @@ to rerun the container:
 podman start biokb_coconut_simple
 ```
 
-### Run as Podman/Docker networked containers
+### Run as Podman networked containers
 
 If you have docker or podman on your system, the easiest way to run all components (relational database, RESTful API server, phpMyAdmin GUI) is to use networked containers with `podman-compose`/`docker-compose`.
 
@@ -156,12 +156,12 @@ cd biokb_taxtree
 podman-compose -f docker-compose.db_neo.yml --env-file .env_template up -d
 podman-compose --env-file .env_template up -d
 ```
-http://localhost:8000/docs
+http://localhost:8001/docs
 
 On the website:
-1. [Import data](http://localhost:8000/docs#/Database%20Management/import_data_import_data__post)
-2. [Export ttls](http://localhost:8000/docs#/Database%20Management/get_report_export_ttls__get)
-3. [Import Neo4J](http://localhost:8000/docs#/Database%20Management/import_neo4j_import_neo4j__get)
+1. [Import data](http://localhost:8001/docs#/Database%20Management/import_data_import_data__post)
+2. [Export ttls](http://localhost:8001/docs#/Database%20Management/get_report_export_ttls__get)
+3. [Import Neo4J](http://localhost:8001/docs#/Database%20Management/import_neo4j_import_neo4j__get)
 
 stop with:
 ```bash

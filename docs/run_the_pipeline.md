@@ -94,12 +94,12 @@ cd biokb_taxtree
 podman-compose -f docker-compose.db_neo.yml --env-file .env_template up -d
 podman-compose --env-file .env_template up -d
 ```
-http://localhost:8000/docs
+http://localhost:8001/docs
 
 On the website:
-1. [Import data](http://localhost:8000/docs#/Database%20Management/import_data_import_data__post)
-2. [Export ttls](http://localhost:8000/docs#/Database%20Management/get_report_export_ttls__get)
-3. [Import Neo4J](http://localhost:8000/docs#/Database%20Management/import_neo4j_import_neo4j__get)
+1. [Import data](http://localhost:8001/docs#/Database%20Management/import_data_import_data__post)
+2. [Export ttls](http://localhost:8001/docs#/Database%20Management/get_report_export_ttls__get)
+3. [Import Neo4J](http://localhost:8001/docs#/Database%20Management/import_neo4j_import_neo4j__get)
 
 stop with:
 ```bash
