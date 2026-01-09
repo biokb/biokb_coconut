@@ -151,10 +151,10 @@ podman start biokb_coconut_simple
 If you have docker or podman on your system, the easiest way to run all components (relational database, RESTful API server, phpMyAdmin GUI) is to use networked containers with `podman-compose`/`docker-compose`.
 
 ```bash
-git clone https://github.com/biokb/biokb_coconut.git
-cd biokb_coconut
+git clone https://github.com/biokb/biokb_taxtree.git
+cd biokb_taxtree
 podman-compose -f docker-compose.db_neo.yml --env-file .env_template up -d
-
+podman-compose --env-file .env_template up -d
 ```
 http://localhost:8000/docs
 
@@ -165,15 +165,17 @@ On the website:
 
 stop with:
 ```bash
-docker stop biokb_coconut
+podman pod stop pod_biokb_db
+podman-compose stop
 ```
 
 rerun with:
 ```bash
-docker start biokb_coconut
+podman pod start pod_biokb_db
+podman-compose start
 ```
 
-***Tip***: Change the default passwords in the `.env_template` file before starting the containers for better security.
+***Tip***: Copy the `.env_template` to `.env` and change the default passwords in the `.env` file before starting the containers for better security. If you have done that you need to use `--env-file .env` instead of `--env-file .env_template` in the commands above or just omit the `--env-file` option (because the default is `.env`).
 
 ## CLI Options
 
