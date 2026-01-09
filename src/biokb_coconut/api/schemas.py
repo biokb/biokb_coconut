@@ -1,8 +1,6 @@
 from typing import Annotated, List, Optional
 
-from click import File
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import desc
 
 
 class OffsetLimit(BaseModel):
