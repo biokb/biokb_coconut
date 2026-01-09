@@ -1,6 +1,5 @@
 from importlib.metadata import PackageNotFoundError, version
 
-from biokb_coconut.db import models
 from biokb_coconut.db.manager import DbManager, get_session, import_data
 from biokb_coconut.rdf.neo4j_importer import Neo4jImporter, import_ttls
 from biokb_coconut.rdf.turtle import TurtleCreator, create_ttls
@@ -19,5 +18,4 @@ __all__ = [
     "import_ttls",
     "TurtleCreator",
     "create_ttls",
-    "models",
 ]
