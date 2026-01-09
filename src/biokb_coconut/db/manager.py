@@ -9,7 +9,6 @@ from typing import Optional, Type
 from urllib.parse import urlparse
 
 import pandas as pd
-from numpy import insert
 from pandas import DataFrame, Series
 from sqlalchemy import Engine, create_engine, event, text, update
 from sqlalchemy.orm import sessionmaker
