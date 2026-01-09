@@ -1,6 +1,6 @@
 [project]
 name = "biokb_coconut"
-version = "0.1.0"
+version = "0.1.1"
 description = """A Python package to import Coconut data in MySQL and Neo4J 
 databases for the BioKB knowledge base."""
 authors = [
