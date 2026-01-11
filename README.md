@@ -1,11 +1,10 @@
 ![docs/imgs/](https://raw.githubusercontent.com/biokb/biokb_coconut/refs/heads/main/docs/imgs/biokb_logo_writing.png)
 # BioKb-Coconut
 
-![](https://img.shields.io/pypi/v/biokb_coconut?color=blue&label=biokb_coconut&style=flat-square)
-![](https://img.shields.io/pypi/pyversions/biokb_coconut?style=flat-square)
-![](https://img.shields.io/pypi/l/biokb_coconut?style=flat-square)
-
-
+![](https://img.shields.io/pypi/v/biokb-coconut?style=flat-square)
+![](https://img.shields.io/pypi/pyversions/biokb-coconut?style=flat-square)
+![](https://img.shields.io/github/actions/workflow/status/biokb/biokb_coconut/pypi-publish.yml?style=flat-square)
+![](https://img.shields.io/github/license/biokb/biokb_coconut?style=flat-square)
 
 BioKb-Coconut (biokb_coconut) is a python package to import Coconut data into a relational database and create RDF triples (turtles) from it. The turtles can be imported into a Neo4J graph database. The package is part of the [BioKb family of packages](https://github.com/biokb) to create and connect biological and medical knowledge bases and graphs.
 

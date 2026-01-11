@@ -1,6 +1,6 @@
 [project]
 name = "biokb-coconut"
-version = "0.1.4"
+version = "0.1.5"
 description = """A Python package to import Coconut data in relational and graph 
 databases."""
 authors = [
@@ -34,6 +34,12 @@ classifiers = [
 keywords = ["knowledge graph", "knowledge base", "biochemistry", "bioinformatics", "Coconut"]
 readme = "README.md"
 license = {text = "MIT"}
+
+[project.urls]
+Homepage = "https://biokb-ipni.readthedocs.io"
+Documentation = "https://biokb-coconut.readthedocs.io"
+Repository = "https://github.com/biokb/biokb_coconut"
+Issues = "https://github.com/biokb/biokb_coconut/issues"
 
 [build-system]
 requires = ["hatchling"]
