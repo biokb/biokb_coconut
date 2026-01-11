@@ -1,8 +1,8 @@
 [project]
-name = "biokb_coconut"
+name = "biokb-coconut"
 version = "0.1.4"
-description = """A Python package to import Coconut data in MySQL and Neo4J 
-databases for the BioKB knowledge base."""
+description = """A Python package to import Coconut data in relational and graph 
+databases."""
 authors = [
     {name = "Christian Ebeling", email = "Christian.Ebeling@scai.fraunhofer.de"},
 ]

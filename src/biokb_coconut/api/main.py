@@ -104,8 +104,9 @@ def verify_credentials(
         )
 
 
-# tag: Database Management
-# ========================
+###############################################################################
+# Database Management
+###############################################################################
 
 
 @app.post(
@@ -113,7 +114,7 @@ def verify_credentials(
     response_model=dict[str, int],
     tags=[Tag.DBMANAGE],
 )
-async def import_data(
+def import_data(
     credentials: HTTPBasicCredentials = Depends(verify_credentials),
     force_download: bool = Query(
         False,
@@ -210,8 +211,9 @@ async def import_neo4j(
     return {"status": "Neo4j import completed successfully."}
 
 
-# tag: Compound
-# ========================
+###############################################################################
+# Compound
+###############################################################################
 
 
 @app.get(
