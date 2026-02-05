@@ -33,8 +33,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-USERNAME = os.environ.get("API_USERNAME", "admin")
-PASSWORD = os.environ.get("API_PASSWORD", "admin")
+USERNAME = os.environ.get("COCONUT_API_USERNAME", "admin")
+PASSWORD = os.environ.get("COCONUT_API_PASSWORD", "admin")
 
 
 def get_engine() -> Engine:
@@ -82,7 +82,7 @@ app.add_middleware(
 )
 
 
-def run_server(host: str = "0.0.0.0", port: int = 8000) -> None:
+def run_api(host: str = "0.0.0.0", port: int = 8000) -> None:
     uvicorn.run(
         app="biokb_coconut.api.main:app",
         host=host,
@@ -123,10 +123,10 @@ def import_data(
             " ensuring the newest version."
         ),
     ),
-    keep_files: bool = Query(
-        True,
+    delete_files: bool = Query(
+        False,
         description=(
-            "Whether to keep the downloaded files"
+            "Whether to delete the downloaded files"
             " after importing them into the database."
         ),
     ),
@@ -137,7 +137,9 @@ def import_data(
     """
     try:
         dbm = manager.DbManager()
-        result = dbm.import_data(force_download=force_download, keep_files=keep_files)
+        result = dbm.import_data(
+            force_download=force_download, delete_files=delete_files
+        )
     except Exception as e:
         logger.error(f"Error importing data: {e}")
         raise HTTPException(
@@ -175,12 +177,12 @@ async def get_report(
 async def import_neo4j(
     credentials: HTTPBasicCredentials = Depends(verify_credentials),
     uri: str | None = Query(
-        NEO4J_URI,
+        default=os.environ.get("NEO4J_URI", NEO4J_URI),
         description="The Neo4j URI. If not provided, "
         "the default from environment variable is used.",
     ),
     user: str | None = Query(
-        NEO4J_USER,
+        default=os.environ.get("NEO4J_USER", NEO4J_USER),
         description="The Neo4j user. If not provided,"
         " the default from environment variable is used.",
     ),
