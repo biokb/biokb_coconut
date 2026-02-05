@@ -51,13 +51,13 @@ class DbManager:
         connection_str = os.getenv(
             "CONNECTION_STR", constants.DB_DEFAULT_CONNECTION_STR
         )
-        self.engine: Engine = engine if engine else create_engine(str(connection_str))
-        if self.engine.dialect.name == "sqlite":
-            with self.engine.connect() as connection:
+        self.__engine: Engine = engine if engine else create_engine(str(connection_str))
+        if self.__engine.dialect.name == "sqlite":
+            with self.__engine.connect() as connection:
                 connection.execute(text("pragma foreign_keys=ON"))
 
-        logger.info("Engine %s", self.engine)
-        self.Session: sessionmaker[Session] = sessionmaker(bind=self.engine)
+        logger.info("Engine: %s", self.__engine)
+        self.Session: sessionmaker[Session] = sessionmaker(bind=self.__engine)
         self.filename: str = os.path.basename(urlparse(constants.DOWNLOAD_LINK).path)
         self.path_to_file: Optional[str] = None
 
@@ -87,14 +87,14 @@ class DbManager:
 
     def create_db(self) -> None:
         """Create the database and all tables."""
-        models.Base.metadata.create_all(self.engine)
+        models.Base.metadata.create_all(self.__engine)
         logger.info(
             "Database created with tables: %s", models.Base.metadata.tables.keys()
         )
 
     def drop_db(self) -> None:
         """Drop the database and all tables."""
-        models.Base.metadata.drop_all(self.engine)
+        models.Base.metadata.drop_all(self.__engine)
         logger.info("Database dropped")
 
     def recreate_db(self) -> None:
@@ -146,7 +146,7 @@ class DbManager:
             .rename_axis("id")
         )
         df_cc.index += 1  # Start index from 1
-        inserted = df_cc.to_sql(model.__tablename__, self.engine, if_exists="append")
+        inserted = df_cc.to_sql(model.__tablename__, self.__engine, if_exists="append")
         df_cc[f"{column_name}_id"] = df_cc.index
         return inserted or 0, df.merge(
             df_cc,
@@ -157,7 +157,7 @@ class DbManager:
         ).drop(columns=[f"name_{column_name}"])
 
     def import_data(
-        self, force_download: bool = False, keep_files: bool = False
+        self, force_download: bool = False, delete_files: bool = False
     ) -> dict[str, int]:
         """
         Import chemical compound data from a CSV file into the database.
@@ -174,8 +174,8 @@ class DbManager:
         Args:
             force_download (bool, optional): If True, forces re-download of data file
                 even if it already exists locally. Defaults to False.
-            keep_files (bool, optional): If True, preserves downloaded files after
-                import completion. If False, removes temporary files. Defaults to False.
+            delete_files (bool, optional): If True, removes downloaded files after
+                import completion. If False, preserves temporary files. Defaults to True.
 
         Returns:
             int | None: Number of rows inserted into the main compound table,
@@ -241,7 +241,7 @@ class DbManager:
         inserted_c = (
             df[column_names].to_sql(
                 models.Compound.__tablename__,
-                self.engine,
+                self.__engine,
                 if_exists="append",
                 chunksize=100000,
             )
@@ -296,10 +296,10 @@ class DbManager:
         inserted[models.CAS.__tablename__] = u5
         inserted[models.CompoundCAS.__tablename__] = j5
 
-        self.update_organism_tax_ids(keep_files=keep_files)
+        self.update_organism_tax_ids(delete_files=delete_files)
         self.update_other_organism_ids_by_wcvp()
 
-        if not keep_files:
+        if delete_files:
             os.remove(path_to_file)
             logger.info("Removed downloaded file %s", path_to_file)
         return inserted
@@ -345,7 +345,8 @@ class DbManager:
         df_unique.index += 1  # Start index from 1
         df_unique.index.name = "id"  # rename index to id
         inserted_unique = (
-            df_unique.to_sql(model.__tablename__, self.engine, if_exists="append") or 0
+            df_unique.to_sql(model.__tablename__, self.__engine, if_exists="append")
+            or 0
         )
 
         # create a association (n:m) table
@@ -358,7 +359,7 @@ class DbManager:
             .drop_duplicates(subset=["compound_id", index_on[:-1] + "_id"])
             .to_sql(
                 joining_model.__tablename__,
-                self.engine,
+                self.__engine,
                 if_exists="append",
                 index=False,
             )
@@ -376,7 +377,7 @@ class DbManager:
             logger.info("Download taxonomy data")
             urllib.request.urlretrieve(constants.TAXONOMY_URL, path_to_file)
 
-    def _import_tax_names(self, keep_files: bool = False) -> None:
+    def _import_tax_names(self, delete_files: bool = False) -> None:
         """
         Import taxonomy names from NCBI taxonomy database into the local database.
         This method downloads the NCBI taxonomy dump file (taxdmp.zip), extracts the names.dmp file,
@@ -384,8 +385,8 @@ class DbManager:
         involves dropping and recreating the table, parsing the pipe-delimited data, and bulk
         inserting the records.
         Args:
-            keep_files (bool, optional): If True, keeps the downloaded taxdmp.zip file after
-                processing. If False (default), removes the file to save disk space.
+            delete_files (bool, optional): If True, removes the downloaded taxdmp.zip file after
+                processing. If False (default), keeps the file to save disk space.
         Returns:
             None
         Note:
@@ -399,8 +400,8 @@ class DbManager:
         """
 
         logger.info("import taxonomy names (up to 5min)")
-        models.TaxonomyName.__table__.drop(self.engine, checkfirst=True)  # type: ignore
-        models.TaxonomyName.__table__.create(self.engine, checkfirst=True)  # type: ignore
+        models.TaxonomyName.__table__.drop(self.__engine, checkfirst=True)  # type: ignore
+        models.TaxonomyName.__table__.create(self.__engine, checkfirst=True)  # type: ignore
         taxtree_path_to_file = os.path.join(constants.DATA_FOLDER, "taxdmp.zip")
         self.__download_taxdmp(taxtree_path_to_file)
         archive = zipfile.ZipFile(taxtree_path_to_file, "r")
@@ -417,16 +418,16 @@ class DbManager:
         df.index.rename("id", inplace=True)
         df.to_sql(
             models.TaxonomyName.__tablename__,
-            self.engine,
+            self.__engine,
             if_exists="append",
             chunksize=10000,
         )
-        if not keep_files:
+        if delete_files:
             os.remove(taxtree_path_to_file)
             logger.info("Removed downloaded file %s", taxtree_path_to_file)
 
     def update_organism_tax_ids(
-        self, import_taxonomy_names: bool = True, keep_files: bool = False
+        self, import_taxonomy_names: bool = True, delete_files: bool = False
     ) -> None:
         """Update taxonomy IDs for organisms in the database.
 
@@ -438,7 +439,7 @@ class DbManager:
         Args:
             import_taxonomy_names (bool, optional): Whether to import taxonomy
                 names before updating. Defaults to True.
-            keep_files (bool, optional): Whether to keep downloaded taxonomy
+            delete_files (bool, optional): Whether to remove downloaded taxonomy
                 files after import. Defaults to False.
 
         Note:
@@ -449,7 +450,7 @@ class DbManager:
         """
         logger.info("Update tax_ids in organism table (up to 5min)")
         if import_taxonomy_names:
-            self._import_tax_names(keep_files=keep_files)
+            self._import_tax_names(delete_files=delete_files)
 
         with self.Session() as session:
             # Scientific name
@@ -476,7 +477,7 @@ class DbManager:
             )
             session.execute(stmt)
             session.commit()
-        models.TaxonomyName.__table__.drop(self.engine, checkfirst=True)  # type: ignore
+        models.TaxonomyName.__table__.drop(self.__engine, checkfirst=True)  # type: ignore
 
     def update_other_organism_ids_by_wcvp(self) -> None:
         """
@@ -491,14 +492,14 @@ class DbManager:
            - Second pass: Updates remaining organisms using synonyms, linking to accepted names
         4. Cleans up the temporary WCVPPlant table
         The method matches organism names with WCVP taxon names and updates the following fields:
-        - ipni_id: International Plant Names Index identifier
+        - coconut_id: International Plant Names Index identifier
         - powo_id: Plants of the World Online identifier
         - wcvp_id: World Checklist of Vascular Plants identifier
         """
         logger.info("Update other organism ids by WCVP")
 
-        models.WCVPPlant.__table__.drop(self.engine, checkfirst=True)  # type: ignore
-        models.WCVPPlant.__table__.create(self.engine, checkfirst=True)  # type: ignore
+        models.WCVPPlant.__table__.drop(self.__engine, checkfirst=True)  # type: ignore
+        models.WCVPPlant.__table__.create(self.__engine, checkfirst=True)  # type: ignore
         if not os.path.exists(constants.WCVP_ZIP_FILE_PATH):
             logger.info("Downloading WCVP data...")
             urllib.request.urlretrieve(
@@ -512,7 +513,6 @@ class DbManager:
                 "taxon_rank",
                 "accepted_plant_name_id",
                 "powo_id",
-                "ipni_id",
             ]
             df = pd.read_csv(
                 zf.open(constants.WCVP_NAMES_FILE), usecols=use_cols, sep="|"
@@ -520,7 +520,7 @@ class DbManager:
             df.set_index("plant_name_id", inplace=True)
             df[df["taxon_rank"] == "Species"].drop(columns=["taxon_rank"]).to_sql(
                 models.WCVPPlant.__tablename__,
-                self.engine,
+                self.__engine,
                 if_exists="append",
                 chunksize=10000,
             )
@@ -533,7 +533,7 @@ class DbManager:
                     == models.WCVPPlant.accepted_plant_name_id,
                 )
                 .values(
-                    ipni_id=models.WCVPPlant.ipni_id,
+                    coconut_id=models.WCVPPlant.coconut_id,
                     powo_id=models.WCVPPlant.powo_id,
                     wcvp_id=models.WCVPPlant.plant_name_id,
                 )
@@ -551,7 +551,7 @@ class DbManager:
                     models.WCVPPlant.accepted_plant_name_id.is_not(None),
                 )
                 .values(
-                    ipni_id=models.WCVPPlant.ipni_id,
+                    coconut_id=models.WCVPPlant.coconut_id,
                     powo_id=models.WCVPPlant.powo_id,
                     wcvp_id=models.WCVPPlant.accepted_plant_name_id,
                 )
@@ -559,13 +559,13 @@ class DbManager:
             session.execute(stmt)
             session.commit()
 
-        models.WCVPPlant.__table__.drop(self.engine, checkfirst=True)  # type: ignore
+        models.WCVPPlant.__table__.drop(self.__engine, checkfirst=True)  # type: ignore
 
 
 def import_data(
     engine: Optional[Engine] = None,
     force_download: bool = False,
-    keep_files: bool = False,
+    delete_files: bool = False,
 ) -> dict[str, int]:
     """Import all data in database.
 
@@ -574,14 +574,16 @@ def import_data(
         force_download (bool, optional): If True, will force download the data, even if
             files already exist. If False, it will skip the downloading part if files
             already exist locally. Defaults to False.
-        keep_files (bool, optional): If True, downloaded files are kept after import.
+        delete_files (bool, optional): If True, downloaded files are deleted after import.
             Defaults to False.
 
     Returns:
         Dict[str, int]: table=key and number of inserted=value
     """
     db_manager = DbManager(engine)
-    return db_manager.import_data(force_download=force_download, keep_files=keep_files)
+    return db_manager.import_data(
+        force_download=force_download, delete_files=delete_files
+    )
 
 
 def get_session(engine: Optional[Engine] = None) -> Session:
