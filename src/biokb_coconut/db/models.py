@@ -519,7 +519,7 @@ class Organism(Base):
         id (int): Primary key.
         name (str): Name of the organism.
         tax_id (Optional[int]): NCBI taxonomy identifier.
-        ipni_id (Optional[str]): IPNI identifier.
+        coconut_id (Optional[str]): IPNI identifier.
         wcvp_id (Optional[int]): WCVP identifier.
         powo_id (Optional[str]): POWO identifier.
         compounds (list[Compound]): List of compounds associated with this organism.
@@ -534,7 +534,7 @@ class Organism(Base):
         ),
     )
     tax_id: Mapped[Optional[int]] = mapped_column(index=True)
-    ipni_id: Mapped[Optional[str]] = mapped_column(String(255))
+    coconut_id: Mapped[Optional[str]] = mapped_column(String(255))
     wcvp_id: Mapped[Optional[int]]
     powo_id: Mapped[Optional[str]] = mapped_column(String(255))
     compounds: Mapped[list["Compound"]] = relationship(
@@ -647,7 +647,7 @@ class WCVPPlant(Base):
         taxon_name (Optional[str]): Taxon name of the plant.
         accepted_plant_name_id (Optional[int]): Accepted plant name identifier.
         powo_id (Optional[str]): POWO identifier.
-        ipni_id (Optional[str]): IPNI identifier.
+        coconut_id (Optional[str]): IPNI identifier.
     """
 
     __tablename__ = Base.table_prefix + "wcvp_plant"
@@ -655,7 +655,7 @@ class WCVPPlant(Base):
     taxon_name: Mapped[Optional[str]] = mapped_column(Text)
     accepted_plant_name_id: Mapped[Optional[int]] = mapped_column(index=True)
     powo_id: Mapped[Optional[str]] = mapped_column(String(255))
-    ipni_id: Mapped[Optional[str]] = mapped_column(String(255))
+    coconut_id: Mapped[Optional[str]] = mapped_column(String(255))
 
     __table_args__ = (
         Index(

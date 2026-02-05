@@ -1,14 +1,30 @@
+import logging
 import os
 
 import click
 from sqlalchemy import create_engine
 
 from biokb_coconut import __version__
-from biokb_coconut.api.main import run_server
-from biokb_coconut.constants import NEO4J_USER, PROJECT_NAME
+from biokb_coconut.api.main import run_api
+from biokb_coconut.constants import DB_DEFAULT_CONNECTION_STR, NEO4J_USER
 from biokb_coconut.db.manager import DbManager
 from biokb_coconut.rdf.neo4j_importer import Neo4jImporter
 from biokb_coconut.rdf.turtle import TurtleCreator
+
+
+def setup_logging(ctx, param, value):
+    # Only set up logging if the user actually asks for it
+    if value == 1:
+        logging.getLogger("biokb_coconut").setLevel(logging.INFO)
+    elif value >= 2:
+        logging.getLogger("biokb_coconut").setLevel(logging.DEBUG)
+
+    # We must add a handler so the logs actually print to the screen
+    if value > 0:
+        ch = logging.StreamHandler()
+        formatter = logging.Formatter("%(name)s - %(levelname)s - %(message)s")
+        ch.setFormatter(formatter)
+        logging.getLogger("fetcher").addHandler(ch)
 
 
 @click.group()
@@ -34,35 +50,33 @@ def main() -> None:
     help="Force re-download of the source file [default: False]",
 )
 @click.option(
-    "-k",
-    "--keep-files",
+    "-d",
+    "--delete-files",
     is_flag=True,
     type=bool,
     default=False,
-    help="Keep downloaded source files after import [default: False]",
+    help="Delete downloaded source files after import [default: False]",
 )
 @click.option(
     "-c",
     "--connection-string",
     type=str,
-    default=f"sqlite:///{PROJECT_NAME}.db",
-    help=f"SQLAlchemy engine URL [default: sqlite:///{PROJECT_NAME}.db]",
+    default=DB_DEFAULT_CONNECTION_STR,
+    help=f"SQLAlchemy engine URL [default: {DB_DEFAULT_CONNECTION_STR}]",
 )
 def import_data(
-    force_download: bool = False,
-    connection_string: str = f"sqlite:///{PROJECT_NAME}.db",
-    keep_files: bool = False,
+    force_download: bool, connection_string: str, delete_files: bool
 ) -> None:
     """Import data.
 
     Args:
         force_download (bool): Force re-download of the source file (default: False)
         connection_string (str): SQLAlchemy engine URL (default: sqlite:///coconut.db)
-        keep_files (bool): Keep downloaded source files after import (default: False)
+        delete_files (bool): Delete downloaded source files after import (default: False)
     """
     engine = create_engine(connection_string)
     DbManager(engine=engine).import_data(
-        force_download=force_download, keep_files=keep_files
+        force_download=force_download, delete_files=delete_files
     )
     click.echo(f"Data imported successfully to {connection_string}")
 
@@ -72,10 +86,10 @@ def import_data(
     "-c",
     "--connection-string",
     type=str,
-    default=f"sqlite:///{PROJECT_NAME}.db",
-    help=f"SQLAlchemy engine URL [default: sqlite:///{PROJECT_NAME}.db]",
+    default=DB_DEFAULT_CONNECTION_STR,
+    help=f"SQLAlchemy engine URL [default: {DB_DEFAULT_CONNECTION_STR}]",
 )
-def create_ttls(connection_string: str = f"sqlite:///{PROJECT_NAME}.db") -> None:
+def create_ttls(connection_string: str) -> None:
     """Create TTL files from local database.
 
     Args:
@@ -105,19 +119,14 @@ def import_neo4j(
     Neo4jImporter(neo4j_uri=uri, neo4j_user=user, neo4j_pwd=password).import_ttls()
 
 
-@main.command("run-api")
+@main.command("run-server")
 @click.option(
     "--host", "-h", default="0.0.0.0", help="API server host [default: 0.0.0.0]"
 )
 @click.option("--port", "-P", default=8000, help="API server port [default: 8000]")
 @click.option("--user", "-u", default="admin", help="API username [default=admin]")
 @click.option("--password", "-p", default="admin", help="API password [default: admin]")
-def run_api(
-    host: str = "0.0.0.0",
-    port: int = 8000,
-    user: str = "admin",
-    password: str = "admin",
-) -> None:
+def run_server(host: str, port: int, user: str, password: str) -> None:
     """Run the API server.
 
     Args:
@@ -131,7 +140,7 @@ def run_api(
     os.environ["API_PASSWORD"] = password
     host_shown = "127.0.0.1" if host == "0.0.0.0" else host
     click.echo(f"API server running at http://{host_shown}:{port}/docs#/")
-    run_server(host=host, port=port)
+    run_api(host=host, port=port)
 
 
 if __name__ == "__main__":

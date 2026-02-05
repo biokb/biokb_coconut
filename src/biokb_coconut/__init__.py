@@ -1,4 +1,8 @@
+import logging
 from importlib.metadata import PackageNotFoundError, version
+
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 from biokb_coconut.db.manager import DbManager, get_session, import_data, models
 from biokb_coconut.rdf.neo4j_importer import Neo4jImporter, import_ttls

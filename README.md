@@ -83,10 +83,10 @@ For more options see the [CLI options](#cli-options) section below.
 
 ### As RESTful API server
 
-***Usage:*** `biokb_coconut run-api [OPTIONS]`
+***Usage:*** `biokb_coconut run-server [OPTIONS]`
 
 ```bash
-biokb_coconut run-api
+biokb_coconut run-server
 ```
 
 - ***user***: admin  
@@ -152,7 +152,7 @@ If you have docker or podman on your system, the easiest way to run all componen
 ```bash
 git clone https://github.com/biokb/biokb_taxtree.git
 cd biokb_taxtree
-podman-compose -f docker-compose.db_neo.yml --env-file .env_template up -d
+podman-compose -f docker-compose.mysql_neo4j_pma.yml --env-file .env_template up -d
 podman-compose --env-file .env_template up -d
 ```
 http://localhost:8001/docs
@@ -191,7 +191,7 @@ biokb_coconut import-data
 | Option | long | Description | default |
 |--------|------|-------------|---------|
 | -f     | --force-download | Force re-download of the source file | False   |
-| -k     | --keep-files     | Keep downloaded source files after import | False   |
+| -d     | --delete-files     | Delete downloaded source files after import | False   |
 | -c     | --connection-string TEXT | SQLAlchemy engine URL | sqlite:///coconut.db | 
 
 If you want to use different relational database (MySQL, PostgreSQL, etc.), provide the connection string with `-c` option. Examples:

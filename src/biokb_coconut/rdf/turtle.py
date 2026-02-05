@@ -113,7 +113,7 @@ def get_empty_graph() -> Graph:
     graph.bind(prefix="npc", namespace=namespaces.NP_CLASSIFIER_CLASS_NS)
     graph.bind(prefix="wcvp", namespace=namespaces.WCVP_PLANT_NS)
     graph.bind(prefix="ncbi", namespace=namespaces.NCBI_TAXON_NS)
-    graph.bind(prefix="ipni", namespace=namespaces.IPNI_NS)
+    graph.bind(prefix="coconut", namespace=namespaces.IPNI_NS)
 
     return graph
 
@@ -142,6 +142,17 @@ def get_rel_name(model: Type[models.OnlyName]) -> str:
     return "HAS_" + name.upper()
 
 
+standard_filter: Optional[Sequence[ColumnElement[bool]]] = (
+    models.Compound.lipinski_rule_of_five_violations <= 1,
+    models.Compound.hydrogen_bond_donors_lipinski <= 5,
+    models.Compound.hydrogen_bond_acceptors_lipinski <= 10,
+    models.Compound.molecular_weight <= 500,
+    models.Compound.alogp <= 5,
+    models.Compound.qed_drug_likeliness >= 0.67,
+    models.Compound.topological_polar_surface_area <= 140,
+)
+
+
 class TurtleCreator:
     """Factory class for generating RDF Turtle files from WCVP database.
 
@@ -150,19 +161,10 @@ class TurtleCreator:
     web applications.
     """
 
-    compound_filter: Sequence[ColumnElement[bool]] = (
-        models.Compound.lipinski_rule_of_five_violations <= 1,
-        models.Compound.hydrogen_bond_donors_lipinski <= 5,
-        models.Compound.hydrogen_bond_acceptors_lipinski <= 10,
-        models.Compound.molecular_weight <= 500,
-        models.Compound.alogp <= 5,
-        models.Compound.qed_drug_likeliness >= 0.67,
-        models.Compound.topological_polar_surface_area <= 140,
-    )
-
     def __init__(
         self,
         engine: Engine | None = None,
+        compound_filter: Optional[Sequence[ColumnElement[bool]]] = None,
     ):
         self.__ttls_folder = EXPORT_FOLDER
         connection_str = os.getenv(
@@ -170,6 +172,10 @@ class TurtleCreator:
         )
         self.__engine = engine if engine else create_engine(str(connection_str))
         self.Session = sessionmaker(bind=self.__engine)
+        if compound_filter is not None:
+            self.compound_filter = compound_filter
+        else:
+            self.compound_filter = None
 
     def _set_ttls_folder(self, export_to_folder: str) -> None:
         """Sets the export folder path.
@@ -202,12 +208,10 @@ class TurtleCreator:
 
         with self.Session() as session:
             # Query only accepted plant names (not synonyms)
-            organisms: List[models.Organism] = (
-                session.query(models.Organism)
-                .join(models.Organism.compounds)
-                .where(*self.compound_filter)
-                .all()
-            )
+            query = session.query(models.Organism).join(models.Organism.compounds)
+            if self.compound_filter:
+                query = query.where(*self.compound_filter)
+            organisms: List[models.Organism] = query.all()
 
             for organism in tqdm(organisms, desc="Creating organisms triples"):
 
@@ -244,12 +248,12 @@ class TurtleCreator:
                             namespaces.NCBI_TAXON_NS[str(organism.tax_id)],
                         )
                     )
-                if organism.ipni_id:
+                if organism.coconut_id:
                     graph.add(
                         triple=(
                             org,
                             namespaces.REL_NS["SAME_AS"],
-                            namespaces.IPNI_NS[str(organism.ipni_id)],
+                            namespaces.IPNI_NS[str(organism.coconut_id)],
                         )
                     )
 
@@ -257,8 +261,9 @@ class TurtleCreator:
                 select(models.Organism.id, models.Compound.identifier)
                 .select_from(models.Compound)
                 .join(models.Compound.organisms)
-                .where(*self.compound_filter)
             )
+            if self.compound_filter:
+                stmt = stmt.where(*self.compound_filter)
 
             rows = session.execute(stmt).all()
             # link compounds
@@ -325,8 +330,9 @@ class TurtleCreator:
                 )
                 .select_from(models.Compound)
                 .join(models.ChemicalClass)
-                .where(*self.compound_filter)
             )
+            if self.compound_filter:
+                stmt = stmt.where(*self.compound_filter)
             rows_compound_link = session.execute(stmt).all()
 
             for model_id, compound_identifier in tqdm(
@@ -360,14 +366,21 @@ class TurtleCreator:
             self.__create_only_name_class(model)
 
     def _create_compounds(self) -> None:
-        logging.info("Creating RDF compounds turtle file.")
+        logging.info("Creating RDF compounds turtle files.")
+
+        BATCH_SIZE = 100000
+        batch_number = 0
+        compound_count = 0
         graph = get_empty_graph()
 
         with self.Session() as session:
             # Query only accepted plant names (not synonyms)
-            compounds: List[models.Compound] = (
-                session.query(models.Compound).where(*self.compound_filter).all()
-            )
+            query = session.query(models.Compound)
+
+            if self.compound_filter:
+                query = query.where(*self.compound_filter)
+
+            compounds: List[models.Compound] = query.all()
 
             for compound in tqdm(compounds, desc="Creating compounds triples"):
                 comp: URIRef = namespaces.COMP_NS[str(compound.identifier)]
@@ -414,9 +427,34 @@ class TurtleCreator:
                             )
                         )
 
-        ttl_path = os.path.join(self.__ttls_folder, "coconut_compounds.ttl")
-        graph.serialize(ttl_path, format="turtle")
-        del graph
+                compound_count += 1
+
+                # When we reach the batch size, serialize and start a new graph
+                if compound_count >= BATCH_SIZE:
+                    ttl_path = os.path.join(
+                        self.__ttls_folder, f"coconut_compounds_{batch_number}.ttl"
+                    )
+                    graph.serialize(ttl_path, format="turtle")
+                    logging.info(
+                        f"Serialized batch {batch_number} with {compound_count} compounds"
+                    )
+                    del graph
+
+                    # Start new batch
+                    batch_number += 1
+                    compound_count = 0
+                    graph = get_empty_graph()
+
+            # Serialize the last batch if there are remaining compounds
+            if compound_count > 0:
+                ttl_path = os.path.join(
+                    self.__ttls_folder, f"coconut_compounds_{batch_number}.ttl"
+                )
+                graph.serialize(ttl_path, format="turtle")
+                logging.info(
+                    f"Serialized batch {batch_number} with {compound_count} compounds"
+                )
+                del graph
 
     def _create_zip_from_all_ttls(self) -> str:
         """Package all generated turtle files into a single zip archive.

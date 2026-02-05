@@ -1,5 +1,6 @@
 version: "3.9"
 name: biokb_db
+# for dev: podman-compose --env-file .env_template -f docker-compose.mysql_neo4j_pma.yml up -d
 
 services:
   mysql:
@@ -42,7 +43,7 @@ services:
       retries: 5
 
   pma:
-    image: phpmyadmin/phpmyadmin:5.2.1
+    image: docker.io/phpmyadmin/phpmyadmin:5.2.1
     container_name: biokb_pma
     environment:
       PMA_HOST: mysql
