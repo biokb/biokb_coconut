@@ -73,7 +73,6 @@ def _build_dynamic_query(
 
         # STRING ......................................................................
         if origin is str:
-            logger.info("used string filter")
             filters.append(column.like(value) if ("%" in value) else column == value)
 
         # NUMBERS .....................................................................
@@ -110,10 +109,6 @@ def _build_dynamic_query(
     offset = payload.get("offset")
     if offset is not None:
         stmt = stmt.offset(offset)
-
-    logger.info(
-        stmt.compile(dialect=mysql.dialect(), compile_kwargs={"literal_binds": True})
-    )
 
     return {
         "count": total_count,

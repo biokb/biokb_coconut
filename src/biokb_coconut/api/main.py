@@ -150,7 +150,7 @@ def import_data(
 
 
 @app.get("/export_ttls/", tags=[Tag.DBMANAGE])
-async def get_report(
+async def create_ttls(
     credentials: HTTPBasicCredentials = Depends(verify_credentials),
     force_create: bool = Query(
         False,

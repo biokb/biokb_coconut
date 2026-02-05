@@ -258,7 +258,7 @@ class OrganismBase(BaseModel):
     id: int = Field(..., description="Primary key, unique identifier for the organism")
     name: str = Field(..., description="Name of the organism")
     tax_id: Optional[int]
-    ipni_id: Optional[str]
+    coconut_id: Optional[str]
     wcvp_id: Optional[int]
     powo_id: Optional[str]
 
@@ -276,7 +276,7 @@ class OrganismSearch(OffsetLimit):
         None, description="Primary key, unique identifier for the organism"
     )
     tax_id: Optional[int] = Field(None, description="NCBI Taxonomy ID of the organism")
-    ipni_id: Optional[str] = Field(None, description="IPNI ID of the organism")
+    coconut_id: Optional[str] = Field(None, description="IPNI ID of the organism")
     wcvp_id: Optional[int] = Field(None, description="WCVP ID of the organism")
     powo_id: Optional[str] = Field(None, description="POWO ID of the organism")
     name: Optional[str] = Field(None, description="Name of the organism")
