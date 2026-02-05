@@ -22,5 +22,5 @@
 ### import_neo4j
 ::: biokb_coconut.cli.import_neo4j
 
-### run_api
-::: biokb_coconut.cli.run_api
+### run_server
+::: biokb_coconut.cli.run_server
