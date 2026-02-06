@@ -248,12 +248,12 @@ class TurtleCreator:
                             namespaces.NCBI_TAXON_NS[str(organism.tax_id)],
                         )
                     )
-                if organism.coconut_id:
+                if organism.powo_id:
                     graph.add(
                         triple=(
                             org,
                             namespaces.REL_NS["SAME_AS"],
-                            namespaces.IPNI_NS[str(organism.coconut_id)],
+                            namespaces.POWO_NS[str(organism.powo_id)],
                         )
                     )
 
@@ -435,9 +435,6 @@ class TurtleCreator:
                         self.__ttls_folder, f"coconut_compounds_{batch_number}.ttl"
                     )
                     graph.serialize(ttl_path, format="turtle")
-                    logging.info(
-                        f"Serialized batch {batch_number} with {compound_count} compounds"
-                    )
                     del graph
 
                     # Start new batch
@@ -451,9 +448,6 @@ class TurtleCreator:
                     self.__ttls_folder, f"coconut_compounds_{batch_number}.ttl"
                 )
                 graph.serialize(ttl_path, format="turtle")
-                logging.info(
-                    f"Serialized batch {batch_number} with {compound_count} compounds"
-                )
                 del graph
 
     def _create_zip_from_all_ttls(self) -> str:
