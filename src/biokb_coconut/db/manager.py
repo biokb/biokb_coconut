@@ -492,7 +492,6 @@ class DbManager:
            - Second pass: Updates remaining organisms using synonyms, linking to accepted names
         4. Cleans up the temporary WCVPPlant table
         The method matches organism names with WCVP taxon names and updates the following fields:
-        - coconut_id: International Plant Names Index identifier
         - powo_id: Plants of the World Online identifier
         - wcvp_id: World Checklist of Vascular Plants identifier
         """
