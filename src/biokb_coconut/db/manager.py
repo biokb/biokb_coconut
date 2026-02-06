@@ -533,7 +533,6 @@ class DbManager:
                     == models.WCVPPlant.accepted_plant_name_id,
                 )
                 .values(
-                    coconut_id=models.WCVPPlant.coconut_id,
                     powo_id=models.WCVPPlant.powo_id,
                     wcvp_id=models.WCVPPlant.plant_name_id,
                 )
@@ -551,7 +550,6 @@ class DbManager:
                     models.WCVPPlant.accepted_plant_name_id.is_not(None),
                 )
                 .values(
-                    coconut_id=models.WCVPPlant.coconut_id,
                     powo_id=models.WCVPPlant.powo_id,
                     wcvp_id=models.WCVPPlant.accepted_plant_name_id,
                 )

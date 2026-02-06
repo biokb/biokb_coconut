@@ -534,6 +534,7 @@ class Organism(Base):
         ),
     )
     tax_id: Mapped[Optional[int]] = mapped_column(index=True)
+    coconut_id: Mapped[Optional[str]] = mapped_column(String(255))
     wcvp_id: Mapped[Optional[int]]
     powo_id: Mapped[Optional[str]] = mapped_column(String(255))
     compounds: Mapped[list["Compound"]] = relationship(
@@ -654,7 +655,6 @@ class WCVPPlant(Base):
     taxon_name: Mapped[Optional[str]] = mapped_column(Text)
     accepted_plant_name_id: Mapped[Optional[int]] = mapped_column(index=True)
     powo_id: Mapped[Optional[str]] = mapped_column(String(255))
-    coconut_id: Mapped[Optional[str]] = mapped_column(String(255))
 
     __table_args__ = (
         Index(
