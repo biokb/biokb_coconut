@@ -53,6 +53,7 @@ services:
   coconut:
     build: .
     image: biokb_coconut_api:latest
+    container_name: biokb_coconut
     ports:
       - "${COCONUT_API_PORT}:8000"
     environment:
