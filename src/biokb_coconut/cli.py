@@ -1,12 +1,13 @@
 import logging
 import os
+from typing import Optional
 
 import click
 from sqlalchemy import create_engine
 
 from biokb_coconut import __version__
 from biokb_coconut.api.main import run_api
-from biokb_coconut.constants import DB_DEFAULT_CONNECTION_STR, NEO4J_USER
+from biokb_coconut.constants import DB_DEFAULT_CONNECTION_STR, NEO4J_USER, NEO4J_URI
 from biokb_coconut.db.manager import DbManager
 from biokb_coconut.rdf.neo4j_importer import Neo4jImporter
 from biokb_coconut.rdf.turtle import TurtleCreator
@@ -101,21 +102,31 @@ def create_ttls(connection_string: str) -> None:
     )
 
 
+neo4j_uri = os.getenv("NEO4J_URI", NEO4J_URI)
+neo4j_user = os.getenv("NEO4J_USER", NEO4J_USER)
+
+
 @main.command("import-neo4j")
 @click.option(
     "--uri",
     "-i",
-    default="bolt://localhost:7687",
-    help='Neo4j database URI [default:"bolt://localhost:7687"]',
+    default=neo4j_uri,
+    help=f'Neo4j database URI [default:"{neo4j_uri}"]',
 )
 @click.option(
-    "--user", "-u", default=NEO4J_USER, help='Neo4j username [default="neo4j"]'
+    "--user", "-u", default=neo4j_user, help=f'Neo4j username [default="{neo4j_user}"]'
 )
-@click.option("--password", "-p", required=True, help="Neo4j password")
-def import_neo4j(
-    password: str, uri: str = "bolt://localhost:7687", user: str = NEO4J_USER
-) -> None:
+@click.option("--password", "-p", default=None, help="Neo4j password")
+def import_neo4j(uri: str, user: str, password: Optional[str]) -> None:
     """Import TTL files into Neo4j database."""
+    if password is None:
+        password = click.prompt(
+            "Please enter the Neo4j password (input will be hidden)", hide_input=True
+        )
+    else:
+        click.echo(
+            "It is not recommended to provide the Neo4j password via command line."
+        )
     Neo4jImporter(neo4j_uri=uri, neo4j_user=user, neo4j_pwd=password).import_ttls()
 
 
