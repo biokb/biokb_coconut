@@ -5,10 +5,12 @@ import sqlite3
 import urllib.request
 import zipfile
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Optional, Type
 from urllib.parse import urlparse
 
 import pandas as pd
+from dateutil.relativedelta import relativedelta
 from pandas import DataFrame, Series
 from sqlalchemy import Engine, create_engine, event, text, update
 from sqlalchemy.orm import sessionmaker
@@ -58,7 +60,6 @@ class DbManager:
 
         logger.info("Engine: %s", self.__engine)
         self.Session: sessionmaker[Session] = sessionmaker(bind=self.__engine)
-        self.filename: str = os.path.basename(urlparse(constants.DOWNLOAD_LINK).path)
         self.path_to_file: Optional[str] = None
 
     @property
@@ -107,10 +108,32 @@ class DbManager:
         Returns:
             str: The full path to the downloaded or existing data file.
         """
-        path_to_file = os.path.join(constants.DATA_FOLDER, self.filename)
-        if not os.path.exists(path_to_file) or force_download:
-            logger.info("Start download %s", self.filename)
-            urllib.request.urlretrieve(constants.DOWNLOAD_LINK, path_to_file)
+        # get current month and year to construct the filename
+        now = datetime.now()
+
+        # go max 3 months back to find a file, in case the current month file is not yet available
+        downloaded = False
+        path_to_file = ""
+        for i in range(3):
+            now = now - relativedelta(months=i)
+            url = constants.DOWNLOAD_LINK_TEMPLATE.format(
+                year=now.year, month=now.month
+            )
+            filename: str = os.path.basename(urlparse(url).path)
+            path_to_file = os.path.join(constants.DATA_FOLDER, filename)
+            if not os.path.exists(path_to_file) or force_download:
+                logger.info("Start download %s", filename)
+                try:
+                    urllib.request.urlretrieve(url, path_to_file)
+                    downloaded = True
+                except Exception as e:
+                    logger.error("Failed to download %s: %s", filename, e)
+                    logger.info("Trying previous month...")
+        if not downloaded:
+            raise FileNotFoundError(
+                "No data file found for the last 3 months. Please check the download link or try again later."
+            )
+
         return path_to_file
 
     def insert_one_to_n_table(
