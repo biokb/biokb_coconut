@@ -126,6 +126,7 @@ class DbManager:
                 try:
                     urllib.request.urlretrieve(url, path_to_file)
                     downloaded = True
+                    break
                 except Exception as e:
                     logger.error("Failed to download %s: %s", filename, e)
                     logger.info("Trying previous month...")
