@@ -1,7 +1,6 @@
 """Basic constants."""
 
 import os
-from datetime import datetime
 from pathlib import Path
 
 # standard for all biokb projects, but individual set
@@ -32,12 +31,8 @@ WCVP_ZIP_FILE_PATH = os.path.join(DATA_FOLDER, WCVP_ZIP_FILE)
 WCVP_NAMES_FILE = "wcvp_names.csv"
 
 
-# get current year and month
-month = datetime.now().month
-year = datetime.now().year
 
-DOWNLOAD_LINK = f"https://coconut.s3.uni-jena.de/prod/downloads/{year}-{month:02d}/coconut_csv-{month:02d}-{year}.zip"
-FILE_IN_ZIP = f"coconut_csv-{month:02d}-{year}.csv"
+DOWNLOAD_LINK_TEMPLATE = "https://coconut.s3.uni-jena.de/prod/downloads/{year}-{month:02d}/coconut_csv-{month:02d}-{year}.zip"
 WCVP_DOWNLOAD_URL = "https://sftp.kew.org/pub/data-repositories/WCVP/wcvp.zip"
 
 TAXONOMY_URL = "https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdmp.zip"
