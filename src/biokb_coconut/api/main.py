@@ -71,6 +71,7 @@ app = FastAPI(
     description=description,
     version="0.1.0",
     lifespan=lifespan,
+    root_path=os.environ.get("API_COCONUT_ROOT_PATH", "")
 )
 
 app.add_middleware(
