@@ -128,8 +128,12 @@ class DbManager:
                     downloaded = True
                     break
                 except Exception as e:
-                    logger.error("Failed to download %s: %s", filename, e)
+                    logger.info("Failed to download %s: %s", filename, e)
                     logger.info("Trying previous month...")
+            elif os.path.exists(path_to_file):
+                logger.info("File %s already exists. Skipping download.", filename)
+                downloaded = True
+                break
         if not downloaded:
             raise FileNotFoundError(
                 "No data file found for the last 3 months. Please check the download link or try again later."
