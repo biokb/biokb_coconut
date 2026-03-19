@@ -1,19 +1,21 @@
 import logging
 import os
 from typing import Optional
+from venv import logger
 
 import click
-from sqlalchemy import create_engine
+from dotenv import load_dotenv
+from sqlalchemy import Engine, create_engine
 
 from biokb_coconut import __version__
 from biokb_coconut.api.main import run_api
-from biokb_coconut.constants import DB_DEFAULT_CONNECTION_STR, NEO4J_USER, NEO4J_URI
+from biokb_coconut.constants import DB_DEFAULT_CONNECTION_STR, NEO4J_URI, NEO4J_USER
 from biokb_coconut.db.manager import DbManager
 from biokb_coconut.rdf.neo4j_importer import Neo4jImporter
 from biokb_coconut.rdf.turtle import TurtleCreator
 
 
-def setup_logging(ctx, param, value):
+def setup_logging(ctx, param, value) -> None:
     # Only set up logging if the user actually asks for it
     if value == 1:
         logging.getLogger("biokb_coconut").setLevel(logging.INFO)
@@ -62,20 +64,48 @@ def main() -> None:
     "-c",
     "--connection-string",
     type=str,
-    default=DB_DEFAULT_CONNECTION_STR,
+    default=None,
     help=f"SQLAlchemy engine URL [default: {DB_DEFAULT_CONNECTION_STR}]",
 )
+@click.option(
+    "-e",
+    "--env",
+    type=str,
+    default=None,
+    help="Environment file to load for configuration (default: None)",
+)
 def import_data(
-    force_download: bool, connection_string: str, delete_files: bool
+    force_download: bool,
+    connection_string: str | None,
+    delete_files: bool,
+    env: str | None,
 ) -> None:
     """Import data.
 
     Args:
         force_download (bool): Force re-download of the source file (default: False)
-        connection_string (str): SQLAlchemy engine URL (default: sqlite:///coconut.db)
+        connection_string (str | None): SQLAlchemy engine URL (default: None, will use environment variable or default)
         delete_files (bool): Delete downloaded source files after import (default: False)
+        env (str | None): Environment file to load for configuration (default: None)
     """
-    engine = create_engine(connection_string)
+    if env:
+        if not os.path.exists(env):
+            logger.error("Environment file %s not found.", env)
+            return
+        load_dotenv(env)
+        connection_string = os.getenv("CONNECTION_STR")
+        if connection_string is None:
+            logger.warning(
+                "CONNECTION_STR environment variable not found. Using default connection string."
+            )
+            connection_string = DB_DEFAULT_CONNECTION_STR
+    if connection_string is None:
+        logger.warning(
+            "No connection string provided. Using default connection string."
+        )
+        connection_string = DB_DEFAULT_CONNECTION_STR
+
+    engine: Engine = create_engine(connection_string)
     DbManager(engine=engine).import_data(
         force_download=force_download, delete_files=delete_files
     )
@@ -87,15 +117,41 @@ def import_data(
     "-c",
     "--connection-string",
     type=str,
-    default=DB_DEFAULT_CONNECTION_STR,
+    default=None,
     help=f"SQLAlchemy engine URL [default: {DB_DEFAULT_CONNECTION_STR}]",
 )
-def create_ttls(connection_string: str) -> None:
+@click.option(
+    "-e",
+    "--env",
+    type=str,
+    default=None,
+    help="Environment file to load for configuration (default: None)",
+)
+def create_ttls(connection_string: str | None, env: str | None) -> None:
     """Create TTL files from local database.
 
     Args:
-        connection_string (str): SQLAlchemy engine URL (default: sqlite:///coconut.db)
+        connection_string (str | None): SQLAlchemy engine URL (default: None, will use environment variable or default)
+        env (str | None): Environment file to load for configuration (default: None)
+
     """
+    if env:
+        if not os.path.exists(env):
+            logger.error("Environment file %s not found.", env)
+            return
+        load_dotenv(env)
+        connection_string = os.getenv("CONNECTION_STR")
+        if connection_string is None:
+            logger.warning(
+                "CONNECTION_STR environment variable not found. Using default connection string."
+            )
+            connection_string = DB_DEFAULT_CONNECTION_STR
+    if connection_string is None:
+        logger.warning(
+            "No connection string provided. Using default connection string."
+        )
+        connection_string = DB_DEFAULT_CONNECTION_STR
+
     path_to_zip = TurtleCreator(create_engine(connection_string)).create_ttls()
     click.echo(
         f"Path to the zip file containing all generated Turtle files. {path_to_zip}"
