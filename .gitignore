@@ -165,4 +165,5 @@ uv.lock
 .vscode/settings.json
 /data/
 coconut.db
-notebooks/biokb_coconut.db
+notebooks/
+.env_localhost
