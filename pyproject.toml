@@ -1,6 +1,6 @@
 [project]
 name = "biokb-coconut"
-version = "0.1.5"
+version = "0.1.6"
 description = """A Python package to import Coconut data in relational and graph 
 databases."""
 authors = [
