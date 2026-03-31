@@ -167,3 +167,4 @@ uv.lock
 coconut.db
 notebooks/
 .env_localhost
+.env_temp
