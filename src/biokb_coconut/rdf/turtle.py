@@ -433,6 +433,15 @@ class TurtleCreator:
                             Literal(name, datatype=XSD.string),
                         )
                     )
+                contains_sugar = getattr(compound, "contains_sugar")
+                if contains_sugar is not None:
+                    graph.add(
+                        triple=(
+                            comp,
+                            namespaces.REL_NS["contains_sugar"],
+                            Literal(contains_sugar, datatype=XSD.boolean),
+                        )
+                    )
 
                 compound_count += 1
 
