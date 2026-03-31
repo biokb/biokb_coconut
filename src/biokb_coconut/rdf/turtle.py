@@ -214,7 +214,6 @@ class TurtleCreator:
             organisms: List[models.Organism] = query.all()
 
             for organism in tqdm(organisms, desc="Creating organisms triples"):
-
                 org: URIRef = org_ns[str(organism.id)]
                 # Add type declarations
                 graph.add(
@@ -296,7 +295,6 @@ class TurtleCreator:
         graph.bind(prefix="c", namespace=namespaces.COMP_NS)
 
         with self.Session() as session:
-
             rows_model = session.query(model.id, model.name).all()
 
             for row in tqdm(rows_model, desc=f"Creating {model.__name__} triples"):
@@ -426,6 +424,15 @@ class TurtleCreator:
                                 Literal(value, datatype=XSD.float),
                             )
                         )
+                name = getattr(compound, "name")
+                if name:
+                    graph.add(
+                        triple=(
+                            comp,
+                            namespaces.REL_NS["name"],
+                            Literal(name, datatype=XSD.string),
+                        )
+                    )
 
                 compound_count += 1
 
