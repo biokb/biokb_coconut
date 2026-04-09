@@ -71,11 +71,8 @@ app = FastAPI(
     description=description,
     version="0.1.0",
     lifespan=lifespan,
-    root_path=os.environ.get("API_COCONUT_ROOT_PATH", ""),
-    # Explicitly set these to work with or without root_path
-    openapi_url="/openapi.json",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    # Don't set root_path since the reverse proxy doesn't strip the prefix
+    # root_path should only be used when a proxy removes a path prefix before forwarding
 )
 
 app.add_middleware(
