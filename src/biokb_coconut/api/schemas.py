@@ -279,11 +279,6 @@ class CompoundSearch(OffsetLimit):
     np_likeness_op: Optional[NumericOperator] = Field(
         NumericOperator.EQ, description="Operator for np_likeness comparison"
     )
-    chemical_sub_class: Optional[str] = Field(None, description="Chemical subclass")
-    chemical_super_class: Optional[str] = Field(None, description="Chemical superclass")
-    direct_parent_classification: Optional[str] = Field(
-        None, description="Direct parent classification"
-    )
     np_classifier_is_glycoside: Optional[bool] = Field(
         None, description="NPClassifier is glycoside"
     )
