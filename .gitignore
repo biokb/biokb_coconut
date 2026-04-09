@@ -168,3 +168,4 @@ coconut.db
 notebooks/
 .env_localhost
 .env_temp
+tests/temp.ipynb

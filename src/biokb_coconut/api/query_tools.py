@@ -2,12 +2,14 @@ import logging
 import sys
 from datetime import date, datetime
 from decimal import Decimal
+from enum import Enum
 from typing import Sequence, Type, TypeAlias, Union, get_args, get_origin
 
 from pydantic import BaseModel
-from sqlalchemy import func, inspect, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 
+from biokb_coconut.api.schemas import NumericOperator
 from biokb_coconut.db import models
 
 # Configure logging
@@ -15,7 +17,6 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
-from sqlalchemy.dialects import mysql
 
 SASearchResults: TypeAlias = dict[
     str,
@@ -56,6 +57,10 @@ def _build_dynamic_query(
     payload = search_obj.model_dump(exclude_none=True, mode="json")
 
     for field_name, value in payload.items():
+        # Skip operator fields - they're handled when processing their corresponding value fields
+        if field_name.endswith("_op"):
+            continue
+
         # Skip if the SQLAlchemy model has no matching column / hybrid attr
         if not hasattr(model_cls, field_name):
             continue
@@ -76,7 +81,21 @@ def _build_dynamic_query(
 
         # NUMBERS .....................................................................
         elif origin in (int, float, Decimal):
-            filters.append(column == value)
+            # Check for operator field
+            op_field_name = f"{field_name}_op"
+            operator = payload.get(op_field_name, NumericOperator.EQ)
+
+            # Apply the appropriate operator
+            if operator == NumericOperator.GT or operator == ">":
+                filters.append(column > value)
+            elif operator == NumericOperator.GTE or operator == ">=":
+                filters.append(column >= value)
+            elif operator == NumericOperator.LT or operator == "<":
+                filters.append(column < value)
+            elif operator == NumericOperator.LTE or operator == "<=":
+                filters.append(column <= value)
+            else:  # Default to equality
+                filters.append(column == value)
 
         # BOOLEANS ....................................................................
         elif origin is bool:

@@ -4,9 +4,10 @@ Each class in this module represents a table in the database, with attributes co
 to the columns of the table. Relationships between tables are defined using SQLAlchemy's
 relationship function."""
 
+from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import Column, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import Column, ForeignKey, Index, Integer, Numeric, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from biokb_coconut import constants
@@ -186,11 +187,11 @@ class Compound(Base):
     annotation_level: Mapped[int]
     total_atom_count: Mapped[int]
     heavy_atom_count: Mapped[int]
-    molecular_weight: Mapped[float]
-    exact_molecular_weight: Mapped[float]
+    molecular_weight: Mapped[Decimal] = mapped_column(Numeric(8, 2))
+    exact_molecular_weight: Mapped[Decimal] = mapped_column(Numeric(11, 5))
     molecular_formula: Mapped[str] = mapped_column(String(255))
-    alogp: Mapped[float]
-    topological_polar_surface_area: Mapped[float]
+    alogp: Mapped[Decimal] = mapped_column(Numeric(6, 2))
+    topological_polar_surface_area: Mapped[Decimal] = mapped_column(Numeric(8, 2))
     rotatable_bond_count: Mapped[int]
     hydrogen_bond_acceptors: Mapped[int]
     hydrogen_bond_donors: Mapped[int]
@@ -198,16 +199,16 @@ class Compound(Base):
     hydrogen_bond_donors_lipinski: Mapped[int]
     lipinski_rule_of_five_violations: Mapped[int]
     aromatic_rings_count: Mapped[int]
-    qed_drug_likeliness: Mapped[float]
+    qed_drug_likeliness: Mapped[Decimal] = mapped_column(Numeric(5, 2))
     formal_charge: Mapped[int]
-    fractioncsp3: Mapped[float]
+    fractioncsp3: Mapped[Decimal] = mapped_column(Numeric(5, 2))
     number_of_minimal_rings: Mapped[int]
-    van_der_walls_volume: Mapped[Optional[float]]
+    van_der_walls_volume: Mapped[Optional[Decimal]] = mapped_column(Numeric(8, 2))
     contains_sugar: Mapped[Optional[bool]]
     contains_ring_sugars: Mapped[bool]
     contains_linear_sugars: Mapped[bool]
     murcko_framework: Mapped[Optional[str]] = mapped_column(Text)
-    np_likeness: Mapped[float]
+    np_likeness: Mapped[Decimal] = mapped_column(Numeric(5, 2))
     np_classifier_is_glycoside: Mapped[Optional[bool]]
 
     # foreign keys to classification tables
