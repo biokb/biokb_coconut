@@ -26,7 +26,7 @@ class Name(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class CompoundBase(BaseModel):
+class CompoundBase2(BaseModel):
     id: int = Field(..., description="Primary key, unique identifier for the compound")
     identifier: str = Field(..., description="Unique compound identifier")
     canonical_smiles: Optional[str] = Field(
@@ -80,6 +80,9 @@ class CompoundBase(BaseModel):
     np_classifier_is_glycoside: Optional[bool] = Field(
         None, description="NPClassifier is glycoside"
     )
+
+
+class CompoundBase(CompoundBase2):
     # foreign keys to classification tables
     chemical_class_id: Optional[int] = Field(None, description="Chemical class ID")
     chemical_sub_class_id: Optional[int] = Field(
@@ -104,26 +107,26 @@ class CompoundBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class Compound(CompoundBase):
-    chemical_class: Optional["ChemicalClass"] = Field(
+class Compound(CompoundBase2):
+    chemical_class: Optional["ChemicalClassBase"] = Field(
         None, description="Chemical class object"
     )
-    chemical_sub_class: Optional["ChemicalSubClass"] = Field(
+    chemical_sub_class: Optional["ChemicalSubClassBase"] = Field(
         default=None, description="Chemical subclass object"
     )
-    direct_parent_classification: Optional["DirectParentClassification"] = Field(
+    direct_parent_classification: Optional["DirectParentClassificationBase"] = Field(
         default=None, description="Direct parent classification object"
     )
-    chemical_super_class: Optional["ChemicalSuperClass"] = Field(
+    chemical_super_class: Optional["ChemicalSuperClassBase"] = Field(
         default=None, description="Chemical superclass object"
     )
-    np_classifier_pathway: Optional["NpClassifierPathway"] = Field(
+    np_classifier_pathway: Optional["NpClassifierPathwayBase"] = Field(
         default=None, description="NP classifier pathway object"
     )
-    np_classifier_superclass: Optional["NpClassifierSuperclass"] = Field(
+    np_classifier_superclass: Optional["NpClassifierSuperclassBase"] = Field(
         default=None, description="NP classifier superclass object"
     )
-    np_classifier_class: Optional["NpClassifierClass"] = Field(
+    np_classifier_class: Optional["NpClassifierClassBase"] = Field(
         default=None, description="NP classifier class object"
     )
 
@@ -131,7 +134,7 @@ class Compound(CompoundBase):
 
 
 class CompoundDetail(Compound):
-    organisms: List["Organism"] = Field(
+    organisms: List["OrganismBase"] = Field(
         [], description="List of organisms associated with this compound"
     )
     dois: List["DOIBase"] = Field(

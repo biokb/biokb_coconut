@@ -167,6 +167,7 @@ class DbManager:
         """
         df_cc = (
             df[[column_name]]
+            .sort_values(by=column_name)
             .drop_duplicates()
             .dropna()
             .rename(columns={column_name: "name"})

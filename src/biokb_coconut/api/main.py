@@ -241,7 +241,9 @@ async def search_compounds(
 @app.get("/compound/", response_model=schemas.CompoundDetail, tags=[Tag.COMPOUND])
 async def get_compound(
     session: Session = Depends(get_session),
-    identifier: str = Query(..., description="Compound identifier"),
+    identifier: str = Query(
+        ..., description="Compound identifier", example="CNP0581134.2"
+    ),
 ) -> models.Compound | None:
     """
     Search compounds. Returns a list of compounds with their DOIs,
