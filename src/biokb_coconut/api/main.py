@@ -238,7 +238,7 @@ async def search_compounds(
     )
 
 
-@app.get("/compound/", response_model=schemas.CompoundBase, tags=[Tag.COMPOUND])
+@app.get("/compound/", response_model=schemas.CompoundDetail, tags=[Tag.COMPOUND])
 async def get_compound(
     session: Session = Depends(get_session),
     identifier: str = Query(..., description="Compound identifier"),

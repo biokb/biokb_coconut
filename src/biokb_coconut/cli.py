@@ -92,7 +92,9 @@ def import_data(
         if not os.path.exists(env):
             logger.error("Environment file %s not found.", env)
             return
-        load_dotenv(env)
+        load_dotenv(
+            env, override=True
+        )  # Load environment variables from the specified .env file, override existing env variables if any
         connection_string = os.getenv("CONNECTION_STR")
         if connection_string is None:
             logger.warning(
@@ -139,7 +141,9 @@ def create_ttls(connection_string: str | None, env: str | None) -> None:
         if not os.path.exists(env):
             logger.error("Environment file %s not found.", env)
             return
-        load_dotenv(env)
+        load_dotenv(
+            env, override=True
+        )  # Load environment variables from the specified .env file, override existing env variables if any
         connection_string = os.getenv("CONNECTION_STR")
         if connection_string is None:
             logger.warning(
@@ -214,7 +218,9 @@ def run_server(host: str, port: int, user: str, password: str, env: str | None) 
         if not os.path.exists(env):
             logger.error("Environment file %s not found.", env)
             return
-        load_dotenv(env)
+        load_dotenv(
+            env, override=True
+        )  # Load environment variables from the specified .env file, override existing env variables if any
     # set env variables for API authentication
     os.environ["API_USER"] = user
     os.environ["API_PASSWORD"] = password
