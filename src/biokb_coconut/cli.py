@@ -89,29 +89,26 @@ def import_data(
         env (str | None): Environment file to load for configuration (default: None)
     """
     if env:
+        if connection_string:
+            logger.warning(
+                "Both environment file and connection string provided. Environment have priority."
+            )
         if not os.path.exists(env):
             logger.error("Environment file %s not found.", env)
             return
-        load_dotenv(
-            env, override=True
-        )  # Load environment variables from the specified .env file, override existing env variables if any
+        load_dotenv(env, override=True)
         connection_string = os.getenv("CONNECTION_STR")
         if connection_string is None:
             logger.warning(
                 "CONNECTION_STR environment variable not found. Using default connection string."
             )
-            connection_string = DB_DEFAULT_CONNECTION_STR
-    if connection_string is None:
-        logger.warning(
-            "No connection string provided. Using default connection string."
-        )
-        connection_string = DB_DEFAULT_CONNECTION_STR
 
-    engine: Engine = create_engine(connection_string)
+    engine: Engine | None = (
+        create_engine(connection_string) if connection_string else None
+    )
     DbManager(engine=engine).import_data(
         force_download=force_download, delete_files=delete_files
     )
-    click.echo(f"Data imported successfully to {connection_string}")
 
 
 @main.command("create-ttls")
