@@ -528,11 +528,7 @@ class Organism(Base):
     __tablename__ = Base.table_prefix + "organism"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(
-        String(1000).with_variant(
-            String(length=1000, collation="utf8mb4_bin"), "mysql"
-        ),
-    )
+    name: Mapped[str] = mapped_column(String(1000))
     tax_id: Mapped[Optional[int]] = mapped_column(index=True)
     wcvp_id: Mapped[Optional[int]]
     powo_id: Mapped[Optional[str]] = mapped_column(String(255))
@@ -546,9 +542,9 @@ class Organism(Base):
 
     __table_args__ = (
         Index(
-            f"ux_{__tablename__}__name",
-            name,
-            mysql_length=255,
+            f"ix_{__tablename__}__name",
+            "name",
+            mysql_length=768,
         ),
     )
 
@@ -650,15 +646,15 @@ class WCVPPlant(Base):
 
     __tablename__ = Base.table_prefix + "wcvp_plant"
     plant_name_id: Mapped[int] = mapped_column(primary_key=True)
-    taxon_name: Mapped[Optional[str]] = mapped_column(Text)
+    taxon_name: Mapped[Optional[str]] = mapped_column(String(1000))
     accepted_plant_name_id: Mapped[Optional[int]] = mapped_column(index=True)
     powo_id: Mapped[Optional[str]] = mapped_column(String(255))
 
     __table_args__ = (
         Index(
             f"ix_{__tablename__}__taxon_name",
-            taxon_name,
-            mysql_length=255,
+            "taxon_name",
+            mysql_length=768,
         ),
     )
 

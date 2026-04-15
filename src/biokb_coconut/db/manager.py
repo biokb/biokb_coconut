@@ -513,6 +513,9 @@ class DbManager:
         Update organism records with external identifiers from WCVP (World Checklist of Vascular Plants).
         This method downloads and processes WCVP data to enrich organism records with additional
         taxonomic identifiers including IPNI IDs, POWO IDs, and WCVP IDs.
+
+        ALERT: This algorithm will not find anything for organisms that are not plants!!!
+
         Process:
         1. Downloads WCVP data from external source if not already present locally
         2. Creates a temporary WCVPPlant table and populates it with species-level data
@@ -538,7 +541,6 @@ class DbManager:
             use_cols = [
                 "plant_name_id",
                 "taxon_name",
-                "taxon_rank",
                 "accepted_plant_name_id",
                 "powo_id",
             ]
@@ -546,7 +548,7 @@ class DbManager:
                 zf.open(constants.WCVP_NAMES_FILE), usecols=use_cols, sep="|"
             )
             df.set_index("plant_name_id", inplace=True)
-            df[df["taxon_rank"] == "Species"].drop(columns=["taxon_rank"]).to_sql(
+            df.to_sql(
                 models.WCVPPlant.__tablename__,
                 self.__engine,
                 if_exists="append",

@@ -242,7 +242,7 @@ async def search_compounds(
 async def get_compound(
     session: Session = Depends(get_session),
     identifier: str = Query(
-        ..., description="Compound identifier", example="CNP0581134.2"
+        ..., description="Compound identifier", examples=["CNP0581134.2"]
     ),
 ) -> models.Compound | None:
     """
