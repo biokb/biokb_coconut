@@ -289,6 +289,9 @@ class DbManager:
         inserted[models.Collection.__tablename__] = u1
         inserted[models.CompoundCollection.__tablename__] = j1
 
+        # replace regular expression '\s+[xX]\s+' with ' × ' in organism names to match the format in taxonomy names
+        df["organisms"] = df.organisms.str.replace(r"\s+[xX]\s+", " × ", regex=True)
+
         u2, j2 = self.import_n2m_column(
             column_series=df.organisms,
             column_name=models.Organism.name.name,
@@ -442,7 +445,8 @@ class DbManager:
             usecols=[0, 1, 3],
             names=["tax_id", "name", "name_type"],
         )
-        df.name_type = df.name_type.str[:-2]  # type: ignore
+        df["name"] = df.name.str.replace(r"\s+[xX]\s+", " × ", regex=True)
+        df["name_type"] = df.name_type.str[:-2]
         df.index += 1
         df.index.rename("id", inplace=True)
         df.to_sql(
