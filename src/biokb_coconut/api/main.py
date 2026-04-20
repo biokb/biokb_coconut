@@ -2,15 +2,16 @@ import logging
 import os
 import secrets
 from contextlib import asynccontextmanager
+from io import BytesIO
 from typing import AsyncGenerator, Generator, Sequence, Tuple
 
 import pandas as pd
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from sqlalchemy import Engine, create_engine, func, select
+from sqlalchemy import Engine, create_engine, select
 from sqlalchemy.engine.row import Row
 from sqlalchemy.orm import Session
 
@@ -313,6 +314,74 @@ async def get_compound(
         .where(models.Compound.identifier == identifier)
         .first()
     )
+
+
+@app.get("/compound/{identifier}/image", tags=[Tag.COMPOUND])
+async def get_compound_image_by_id(
+    identifier: str,
+    session: Session = Depends(get_session),
+    width: int = Query(400, ge=64, le=2048, description="Output image width in px"),
+    height: int = Query(300, ge=64, le=2048, description="Output image height in px"),
+) -> Response:
+    """Render a PNG image for a compound by DB primary key via its standard InChI.
+
+    The InChI is converted to an RDKit molecule, transformed to a Molfile in memory,
+    and then rendered to PNG.
+    """
+    standard_inchi = (
+        session.query(models.Compound.standard_inchi)
+        .where(models.Compound.identifier == identifier)
+        .scalar()
+    )
+
+    if standard_inchi is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Compound with identifier {identifier} not found.",
+        )
+    if not standard_inchi.strip():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Compound with identifier {identifier} has no standard InChI.",
+        )
+
+    try:
+        from rdkit import Chem  # type: ignore[import-not-found]
+        from rdkit.Chem import Draw  # type: ignore[import-not-found]
+    except ImportError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=(
+                "RDKit is required for image generation but is not installed. "
+                "Install the 'rdkit' package and retry."
+            ),
+        ) from e
+
+    mol = Chem.MolFromInchi(standard_inchi)
+    if mol is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"Failed to parse standard InChI for compound identifier {identifier}."
+            ),
+        )
+
+    # Build a Molfile explicitly from the InChI-derived molecule before drawing.
+    molfile = Chem.MolToMolBlock(mol)
+    mol_from_molfile = Chem.MolFromMolBlock(molfile)
+    if mol_from_molfile is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=(
+                f"Failed to create Molfile representation for compound identifier {identifier}."
+            ),
+        )
+
+    image = Draw.MolToImage(mol_from_molfile, size=(width, height))
+    image_buffer = BytesIO()
+    image.save(image_buffer, format="PNG")
+
+    return Response(content=image_buffer.getvalue(), media_type="image/png")
 
 
 @app.get("/compound/name/suggestions", response_model=list[str], tags=[Tag.COMPOUND])

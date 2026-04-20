@@ -14,6 +14,7 @@ dependencies = [
     "neo4j>=6.0.3",
     "pandas>=2.3.1",
     "pymysql>=1.1.1",
+    "rdkit>=2025.3.6",
     "rdflib-neo4j>=1.1",
     "requests>=2.32.4",
     "sqlalchemy>=2.0.41",
