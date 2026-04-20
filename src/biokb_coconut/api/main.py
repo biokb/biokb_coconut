@@ -256,6 +256,28 @@ async def get_compound(
     )
 
 
+@app.get("/compound/name/suggestions", response_model=list[str], tags=[Tag.COMPOUND])
+async def get_compound_name_suggestions(
+    session: Session = Depends(get_session),
+    name: str = Query(
+        ..., description="Compound name", examples=["Aspirin"], min_length=3
+    ),
+) -> list[str]:
+    """
+    Search compounds by name. Returns a list of compound names.
+
+    The name query is case-insensitive and supports partial matches. For example, a query of "asp" may return "Aspirin", "Aspartame", etc.
+    """
+    stmt = (
+        select(models.Compound.name)
+        .where(models.Compound.name.ilike(f"{name}%"))
+        .limit(10)
+        .order_by(models.Compound.name.asc())
+    )
+    result = session.execute(stmt).all()
+    return [row[0] for row in result] if result else []
+
+
 @app.get("/dois/", response_model=schemas.DOISearchResult, tags=[Tag.COMPOUND])
 async def search_dois(
     search: schemas.DOISearch = Depends(),

@@ -182,7 +182,7 @@ class Compound(Base):
     canonical_smiles: Mapped[str] = mapped_column(Text)
     standard_inchi: Mapped[str] = mapped_column(Text)
     standard_inchi_key: Mapped[str] = mapped_column(String(32))
-    name: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    name: Mapped[Optional[str]] = mapped_column(String(10000), nullable=True)
     iupac_name: Mapped[Optional[str]] = mapped_column(Text)
     annotation_level: Mapped[int]
     total_atom_count: Mapped[int]
@@ -277,6 +277,14 @@ class Compound(Base):
         return (
             f"<Compound(id={self.id}, name={self.name}, identifier={self.identifier})>"
         )
+
+    __table_args__ = (
+        Index(
+            f"ix_{__tablename__}__name",
+            "name",
+            mysql_length=768,
+        ),
+    )
 
 
 class NpClassifierPathway(Base, OnlyName):
