@@ -1,5 +1,6 @@
 from enum import Enum
 from typing import Annotated, List, Optional
+from unittest.mock import Base
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -150,7 +151,7 @@ class CompoundDetail(Compound):
     model_config = ConfigDict(from_attributes=True)
 
 
-class CompoundSearch(OffsetLimit):
+class CompoundSearchBase(BaseModel):
     identifier: Optional[str] = Field(None, description="Unique compound identifier")
     canonical_smiles: Optional[str] = Field(
         None, description="Canonical SMILES notation"
@@ -296,12 +297,45 @@ class CompoundSearch(OffsetLimit):
     model_config = ConfigDict(from_attributes=True)
 
 
+class CompoundSearch(CompoundSearchBase, OffsetLimit):
+    pass
+
+
 class CompoundSearchResult(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     count: int
     offset: int
     limit: int
     results: List[CompoundBase]
+
+
+class Quartile(BaseModel):
+    q25: float = Field(..., description="25th percentile")
+    q50: float = Field(..., description="50th percentile (median)")
+    q75: float = Field(..., description="75th percentile")
+    not_null_percentage: float = Field(
+        ..., description="Percentage of non-null values for this property"
+    )
+
+
+class CompoundSearchResultStatistics(BaseModel):
+    total_atom_count: Quartile
+    heavy_atom_count: Quartile
+    molecular_weight: Quartile
+    alogp: Quartile
+    topological_polar_surface_area: Quartile
+    rotatable_bond_count: Quartile
+    hydrogen_bond_acceptors: Quartile
+    hydrogen_bond_donors: Quartile
+    hydrogen_bond_acceptors_lipinski: Quartile
+    hydrogen_bond_donors_lipinski: Quartile
+    aromatic_rings_count: Quartile
+    qed_drug_likeliness: Quartile
+    formal_charge: Quartile
+    fractioncsp3: Quartile
+    number_of_minimal_rings: Quartile
+    van_der_walls_volume: Quartile
+    np_likeness: Quartile
 
 
 class DOIBase(BaseModel):

@@ -51,6 +51,29 @@ def _build_dynamic_query(
     attributes of a Pydantic model instance.  The operator is inferred from
     each field's *declared* type, not the runtime value.
     """
+    filters = create_dynamic_query_filters(search_obj, model_cls)
+    stmt = select(model_cls).where(*filters)
+    payload = search_obj.model_dump(exclude_none=True, mode="json")
+
+    count_stmt = select(func.count()).select_from(stmt.subquery())
+    total_count = db.execute(count_stmt).scalar()
+
+    limit = payload.get("limit")
+    if limit is not None:
+        stmt = stmt.limit(limit)
+    offset = payload.get("offset")
+    if offset is not None:
+        stmt = stmt.offset(offset)
+
+    return {
+        "count": total_count,
+        "limit": limit,
+        "offset": offset,
+        "results": db.execute(stmt).scalars().all(),
+    }
+
+
+def create_dynamic_query_filters(search_obj, model_cls):
     filters = []
 
     # Only the attributes the client actually supplied (`exclude_none`)
@@ -118,22 +141,4 @@ def _build_dynamic_query(
                 "Using equality operator as fallback."
             )
             filters.append(column == value)
-
-    stmt = select(model_cls).where(*filters)
-
-    count_stmt = select(func.count()).select_from(stmt.subquery())
-    total_count = db.execute(count_stmt).scalar()
-
-    limit = payload.get("limit")
-    if limit is not None:
-        stmt = stmt.limit(limit)
-    offset = payload.get("offset")
-    if offset is not None:
-        stmt = stmt.offset(offset)
-
-    return {
-        "count": total_count,
-        "limit": limit,
-        "offset": offset,
-        "results": db.execute(stmt).scalars().all(),
-    }
+    return filters

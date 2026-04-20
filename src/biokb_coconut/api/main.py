@@ -4,17 +4,22 @@ import secrets
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Generator, Sequence, Tuple
 
+import pandas as pd
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from sqlalchemy import Engine, create_engine, select
+from sqlalchemy import Engine, create_engine, func, select
 from sqlalchemy.engine.row import Row
 from sqlalchemy.orm import Session
 
 from biokb_coconut.api import schemas
-from biokb_coconut.api.query_tools import SASearchResults, build_dynamic_query
+from biokb_coconut.api.query_tools import (
+    SASearchResults,
+    build_dynamic_query,
+    create_dynamic_query_filters,
+)
 from biokb_coconut.api.tags import Tag
 from biokb_coconut.constants import (
     DB_DEFAULT_CONNECTION_STR,
@@ -236,6 +241,58 @@ async def search_compounds(
         model_cls=models.Compound,
         db=session,
     )
+
+
+@app.get(
+    "/compounds/statistics/",
+    response_model=schemas.CompoundSearchResultStatistics,
+    tags=[Tag.COMPOUND],
+)
+async def get_compounds_statistics(
+    search: schemas.CompoundSearchBase = Depends(),
+    session: Session = Depends(get_session),
+) -> schemas.CompoundSearchResultStatistics:
+    """Get statistics of compounds matching the search criteria, including count and quartiles of various properties.
+
+    This will only work for the first 10,000 results to avoid performance issues."""
+    c = models.Compound
+    filters = create_dynamic_query_filters(search_obj=search, model_cls=c)
+
+    stmt = (
+        select(
+            c.total_atom_count,
+            c.heavy_atom_count,
+            c.molecular_weight,
+            c.alogp,
+            c.topological_polar_surface_area,
+            c.rotatable_bond_count,
+            c.hydrogen_bond_acceptors,
+            c.hydrogen_bond_donors,
+            c.hydrogen_bond_acceptors_lipinski,
+            c.hydrogen_bond_donors_lipinski,
+            c.aromatic_rings_count,
+            c.qed_drug_likeliness,
+            c.formal_charge,
+            c.fractioncsp3,
+            c.number_of_minimal_rings,
+            c.van_der_walls_volume,
+            c.np_likeness,
+        )
+        .where(*filters)
+        .limit(10000)
+    )
+    result = session.execute(stmt).all()
+    df = pd.DataFrame(result).astype(float)
+    all = df.shape[0]
+    quartiles = {}
+    for col in df.columns:
+        quartiles[col] = {
+            "q25": round(df[col].quantile(0.25), 2),
+            "q50": round(df[col].quantile(0.5), 2),
+            "q75": round(df[col].quantile(0.75), 2),
+            "not_null_percentage": round(int(df[col].notnull().sum()) / all * 100, 1),
+        }
+    return schemas.CompoundSearchResultStatistics(**quartiles)
 
 
 @app.get("/compound/", response_model=schemas.CompoundDetail, tags=[Tag.COMPOUND])
@@ -695,6 +752,10 @@ async def get_np_classifier_class_names(
     stmt = select(models.NpClassifierClass.id, models.NpClassifierClass.name)
     if id:
         stmt = stmt.where(models.NpClassifierClass.id == id)
+    if not id and name:
+        stmt = stmt.where(models.NpClassifierClass.name.ilike(name))
+    result: Sequence[Row[Tuple[int, str]]] = session.execute(stmt).all()
+    return result
     if not id and name:
         stmt = stmt.where(models.NpClassifierClass.name.ilike(name))
     result: Sequence[Row[Tuple[int, str]]] = session.execute(stmt).all()
