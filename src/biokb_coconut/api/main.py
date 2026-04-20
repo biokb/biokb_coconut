@@ -287,9 +287,11 @@ async def get_compounds_statistics(
     quartiles = {}
     for col in df.columns:
         quartiles[col] = {
+            "min": round(df[col].min(), 2),
             "q25": round(df[col].quantile(0.25), 2),
             "q50": round(df[col].quantile(0.5), 2),
             "q75": round(df[col].quantile(0.75), 2),
+            "max": round(df[col].max(), 2),
             "not_null_percentage": round(int(df[col].notnull().sum()) / all * 100, 1),
         }
     return schemas.CompoundSearchResultStatistics(**quartiles)

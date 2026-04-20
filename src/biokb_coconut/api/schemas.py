@@ -310,9 +310,11 @@ class CompoundSearchResult(BaseModel):
 
 
 class Quartile(BaseModel):
+    min: float = Field(..., description="Minimum value")
     q25: float = Field(..., description="25th percentile")
     q50: float = Field(..., description="50th percentile (median)")
     q75: float = Field(..., description="75th percentile")
+    max: float = Field(..., description="Maximum value")
     not_null_percentage: float = Field(
         ..., description="Percentage of non-null values for this property"
     )
