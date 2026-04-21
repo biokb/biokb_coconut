@@ -11,6 +11,8 @@ from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from rdkit import Chem
+from rdkit.Chem import AllChem, Draw, rdDepictor
 from sqlalchemy import Engine, create_engine, select
 from sqlalchemy.engine.row import Row
 from sqlalchemy.orm import Session
@@ -316,7 +318,51 @@ async def get_compound(
     )
 
 
-@app.get("/compound/{identifier}/image", tags=[Tag.COMPOUND])
+@app.get(
+    "/compound/molfile/{identifier}",
+    response_model=str,
+    tags=[Tag.COMPOUND],
+)
+async def get_compound_molfile(
+    session: Session = Depends(get_session), identifier: str | None = None
+):
+    """Get a 3D molfile string by compound identifier."""
+    standard_inchi: str | None = (
+        session.query(models.Compound.standard_inchi)
+        .where(models.Compound.identifier == identifier)
+        .scalar()
+    )
+    if standard_inchi is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Compound with identifier {identifier} not found.",
+        )
+    mol = Chem.MolFromInchi(standard_inchi)
+    if mol is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"Failed to parse standard InChI for compound identifier {identifier}."
+            ),
+        )
+    # Add hydrogens (important for 3D geometry)
+    mol = Chem.AddHs(mol)
+
+    # Generate 3D coordinates
+    res = AllChem.EmbedMolecule(mol, AllChem.ETKDG())  # type: ignore
+
+    if res != 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"RDKit failed to generate 3D coordinates for compound identifier {identifier}.",
+        )
+
+    # Optimize geometry
+    AllChem.UFFOptimizeMolecule(mol)  # type: ignore
+    return Chem.MolToMolBlock(mol)
+
+
+@app.get("/compound/image/{identifier}/", response_class=Response, tags=[Tag.COMPOUND])
 async def get_compound_image_by_id(
     identifier: str,
     session: Session = Depends(get_session),
@@ -345,18 +391,6 @@ async def get_compound_image_by_id(
             detail=f"Compound with identifier {identifier} has no standard InChI.",
         )
 
-    try:
-        from rdkit import Chem  # type: ignore[import-not-found]
-        from rdkit.Chem import Draw  # type: ignore[import-not-found]
-    except ImportError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=(
-                "RDKit is required for image generation but is not installed. "
-                "Install the 'rdkit' package and retry."
-            ),
-        ) from e
-
     mol = Chem.MolFromInchi(standard_inchi)
     if mol is None:
         raise HTTPException(
@@ -367,6 +401,7 @@ async def get_compound_image_by_id(
         )
 
     # Build a Molfile explicitly from the InChI-derived molecule before drawing.
+    rdDepictor.Compute2DCoords(mol)
     molfile = Chem.MolToMolBlock(mol)
     mol_from_molfile = Chem.MolFromMolBlock(molfile)
     if mol_from_molfile is None:
