@@ -827,7 +827,3 @@ async def get_np_classifier_class_names(
         stmt = stmt.where(models.NpClassifierClass.name.ilike(name))
     result: Sequence[Row[Tuple[int, str]]] = session.execute(stmt).all()
     return result
-    if not id and name:
-        stmt = stmt.where(models.NpClassifierClass.name.ilike(name))
-    result: Sequence[Row[Tuple[int, str]]] = session.execute(stmt).all()
-    return result
