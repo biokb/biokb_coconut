@@ -290,7 +290,9 @@ class DbManager:
         inserted[models.CompoundCollection.__tablename__] = j1
 
         # replace regular expression '\s+[xX]\s+' with ' × ' in organism names to match the format in taxonomy names
-        df["organisms"] = df.organisms.str.replace(r"\s+[xX]\s+", " × ", regex=True)
+        df["organisms"] = df.organisms.str.replace(
+            r"\s+[xX]\s+", " × ", regex=True
+        ).str.replace(r"\s{2,}", " ", regex=True)
 
         u2, j2 = self.import_n2m_column(
             column_series=df.organisms,
@@ -368,7 +370,12 @@ class DbManager:
 
         # Import a many-to-many relationship column from the DataFrame.
         # The column_series should contain strings with values separated by '|'.
-        df = column_series.dropna().str.split("|").explode().to_frame()
+        series_exploded = column_series.dropna().str.split("|").explode()
+
+        if model == models.Organism:
+            series_exploded = series_exploded.str.capitalize()
+
+        df = series_exploded.to_frame()
 
         # create a table with unique values for column
         df_unique = pd.DataFrame(
