@@ -1,15 +1,14 @@
 import logging
-import sys
 from datetime import date, datetime
-from decimal import Decimal
 from enum import Enum
 from typing import Sequence, Type, TypeAlias, Union, get_args, get_origin
 
+from fastapi import HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from biokb_coconut.api.schemas import NumericOperator
+from biokb_coconut.api.schemas import RANGE_PATTERN, NumericOperator, NumericOrRange
 from biokb_coconut.db import models
 
 # Configure logging
@@ -28,30 +27,19 @@ def build_dynamic_query(
     search_obj: BaseModel,
     model_cls: Type[models.Base],
     db: Session,
-) -> SASearchResults | dict[str, str]:
-    try:
-        return _build_dynamic_query(
-            search_obj=search_obj,
-            model_cls=model_cls,
-            db=db,
-        )
-    except Exception as e:
-        exc_type, exc_value, exc_traceback = sys.exc_info()
-        logger.error(f"Error in node search: {e}\n{exc_traceback}")
-        return {"error": str(e)}
-
-
-def _build_dynamic_query(
-    search_obj: BaseModel,
-    model_cls: Type[models.Base],
-    db: Session,
 ) -> SASearchResults:
     """
     Build and execute a SQLAlchemy 2.0-style SELECT based on the non-None
     attributes of a Pydantic model instance.  The operator is inferred from
     each field's *declared* type, not the runtime value.
     """
-    filters = create_dynamic_query_filters(search_obj, model_cls)
+    try:
+        filters = create_dynamic_query_filters(search_obj, model_cls)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_102_PROCESSING,
+            detail=e,
+        )
     stmt = select(model_cls).where(*filters)
     payload = search_obj.model_dump(exclude_none=True, mode="json")
 
@@ -65,6 +53,11 @@ def _build_dynamic_query(
     if offset is not None:
         stmt = stmt.offset(offset)
 
+    # print the real SQL
+    logger.info(
+        f"Executing SQL: {stmt.compile(db.bind)} with params: {stmt.compile(db.bind).params}"
+    )
+
     return {
         "count": total_count,
         "limit": limit,
@@ -77,11 +70,11 @@ def create_dynamic_query_filters(search_obj, model_cls):
     filters = []
 
     # Only the attributes the client actually supplied (`exclude_none`)
-    payload = search_obj.model_dump(exclude_none=True, mode="json")
+    field_value_dict = search_obj.model_dump(exclude_none=True, mode="json")
 
-    for field_name, value in payload.items():
+    for field_name, value in field_value_dict.items():
         # Skip operator fields - they're handled when processing their corresponding value fields
-        if field_name.endswith("_op"):
+        if field_name.endswith("_op") or value is None:
             continue
 
         # Skip if the SQLAlchemy model has no matching column / hybrid attr
@@ -89,7 +82,7 @@ def create_dynamic_query_filters(search_obj, model_cls):
             continue
         column = getattr(model_cls, field_name)
 
-        # ↓ The type you wrote in the Pydantic model definition
+        # The type in the Pydantic model definition
         declared_type = search_obj.__pydantic_fields__[field_name].annotation
         # Handle Optional types (e.g., Optional[str] or Union[str, None])
         if get_origin(declared_type) is Union:
@@ -98,24 +91,47 @@ def create_dynamic_query_filters(search_obj, model_cls):
                 declared_type = args[0]
         origin = get_origin(declared_type) or declared_type
 
+        op_field_name = f"{field_name}_op"
         # STRING ......................................................................
-        if origin is str:
+        if origin is str and op_field_name not in field_value_dict:
             filters.append(column.like(value) if ("%" in value) else column == value)
-
         # NUMBERS .....................................................................
-        elif origin in (int, float, Decimal):
-            # Check for operator field
-            op_field_name = f"{field_name}_op"
-            operator = payload.get(op_field_name, NumericOperator.EQ)
+        elif declared_type is NumericOrRange and op_field_name in field_value_dict:
+            operator = field_value_dict.get(op_field_name, NumericOperator.EQ.value)
+            if isinstance(
+                value, str
+            ):  # value is only a string if the client sent a range like "10-20" or "10.5 - 20.5"
+                found = RANGE_PATTERN.search(
+                    value
+                )  # This will raise if the format is invalid
 
-            # Apply the appropriate operator
-            if operator == NumericOperator.GT or operator == ">":
+                if found:
+                    r = found.groupdict()
+                    low = float(r["low"]) if r["low_decimal"] else int(r["low"])
+                    high = float(r["high"]) if r["high_decimal"] else int(r["high"])
+                    value = (low, high)
+                    if operator != NumericOperator.BTW.value:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Range value provided for field '{field_name}' but operator is '{operator}'. Expected 'between' operator for range values.",
+                        )
+                else:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Invalid range format for field '{field_name}': '{value}'. Expected format 'min-max'.",
+                    )
+            # check with resular expression if the value is in the format of "start-end" for between operator
+            if operator in (NumericOperator.BTW.value, "between") and isinstance(
+                value, tuple
+            ):
+                filters.append(column.between(value[0], value[1]))
+            elif operator == NumericOperator.GT.value:
                 filters.append(column > value)
-            elif operator == NumericOperator.GTE or operator == ">=":
+            elif operator == NumericOperator.GTE.value:
                 filters.append(column >= value)
-            elif operator == NumericOperator.LT or operator == "<":
+            elif operator == NumericOperator.LT.value:
                 filters.append(column < value)
-            elif operator == NumericOperator.LTE or operator == "<=":
+            elif operator == NumericOperator.LTE.value:
                 filters.append(column <= value)
             else:  # Default to equality
                 filters.append(column == value)
@@ -141,4 +157,5 @@ def create_dynamic_query_filters(search_obj, model_cls):
                 "Using equality operator as fallback."
             )
             filters.append(column == value)
+
     return filters

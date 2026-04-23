@@ -1,18 +1,66 @@
+import re
 from enum import Enum
+from logging import getLogger
 from typing import Annotated, List, Optional
-from unittest.mock import Base
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field
+
+logger = getLogger(__name__)
+# Pre-compile the regex for performance
+RANGE_PATTERN = re.compile(
+    r"^(?P<low>[+-]?\d*(?P<low_decimal>\.?\d+)?)(\s*-\s*(?P<high>[+-]?\d*(?P<high_decimal>\.?\d+)?))?$"
+)
+
+
+def get_and_validate_range_logic(
+    v: Optional[str | int | float],
+) -> Optional[int | float | str]:
+    """Validate that the input string is in the format "min-max" and that min < max."""
+    logger.info(f"Validating range logic for value: {v}, type: {type(v)}")
+    if v is None or isinstance(
+        v,
+        (
+            int,
+            float,
+        ),
+    ):
+        return v
+    match = RANGE_PATTERN.match(v.strip())
+    if not match:
+        raise ValueError(
+            "Format must be numeric range 'min-max' or a single numeric value"
+        )
+    found = match.groupdict()
+    low = high = None
+    low = float(found["low"]) if found["low_decimal"] else int(found["low"])
+
+    if found["high"]:
+        high = float(found["high"]) if found["high_decimal"] else int(found["high"])
+        if low >= high:
+            raise ValueError(
+                f"Invalid range: low value {low} must be less than high value {high}"
+            )
+        return f"{low}-{high}"
+    else:
+        return low  # If there's no high value, just return the low value as a single number
+
+
+# Create a custom type alias
+NumericOrRange = Annotated[
+    str | int | float,
+    AfterValidator(get_and_validate_range_logic),
+]
 
 
 class NumericOperator(str, Enum):
     """Comparison operators for numeric fields."""
 
-    EQ = "=="  # Equal
+    EQ = "="  # Equal
     GT = ">"  # Greater than
     GTE = ">="  # Greater than or equal
     LT = "<"  # Less than
     LTE = "<="  # Less than or equal
+    BTW = "between"  # Between (for range queries)
 
 
 class OffsetLimit(BaseModel):
@@ -160,108 +208,119 @@ class CompoundSearchBase(BaseModel):
     standard_inchi_key: Optional[str] = Field(None, description="Standard InChIKey")
     name: Optional[str] = Field(None, description="Name of the compound")
     iupac_name: Optional[str] = Field(None, description="IUPAC name")
-    annotation_level: Optional[int] = Field(None, description="Annotation level")
-    annotation_level_op: Optional[NumericOperator] = Field(
+    # annotation_level: Optional[int | str] = Field(None, description="Annotation level")
+    annotation_level: Optional[NumericOrRange] = Field(
+        None, description="Annotation level"
+    )
+    annotation_level_op: NumericOperator = Field(
         NumericOperator.EQ, description="Operator for annotation_level comparison"
     )
-    total_atom_count: Optional[int] = Field(None, description="Total atom count")
+    total_atom_count: Optional[NumericOrRange] = Field(
+        None, description="Total atom count"
+    )
     total_atom_count_op: Optional[NumericOperator] = Field(
         NumericOperator.EQ, description="Operator for total_atom_count comparison"
     )
-    heavy_atom_count: Optional[int] = Field(None, description="Heavy atom count")
+    heavy_atom_count: Optional[NumericOrRange] = Field(
+        None, description="Heavy atom count"
+    )
     heavy_atom_count_op: Optional[NumericOperator] = Field(
         NumericOperator.EQ, description="Operator for heavy_atom_count comparison"
     )
-    molecular_weight: Optional[float] = Field(None, description="Molecular weight")
+    molecular_weight: Optional[NumericOrRange] = Field(
+        None, description="Molecular weight"
+    )
     molecular_weight_op: Optional[NumericOperator] = Field(
         NumericOperator.EQ, description="Operator for molecular_weight comparison"
     )
-    exact_molecular_weight: Optional[float] = Field(
+    exact_molecular_weight: Optional[NumericOrRange] = Field(
         None, description="Exact molecular weight"
     )
     exact_molecular_weight_op: Optional[NumericOperator] = Field(
         NumericOperator.EQ, description="Operator for exact_molecular_weight comparison"
     )
     molecular_formula: Optional[str] = Field(None, description="Molecular formula")
-    alogp: Optional[float] = Field(None, description="ALogP value")
+    alogp: Optional[NumericOrRange] = Field(None, description="ALogP value")
     alogp_op: Optional[NumericOperator] = Field(
         NumericOperator.EQ, description="Operator for alogp comparison"
     )
-    topological_polar_surface_area: Optional[float] = Field(
+    topological_polar_surface_area: Optional[NumericOrRange] = Field(
         None, description="Topological polar surface area"
     )
     topological_polar_surface_area_op: Optional[NumericOperator] = Field(
         NumericOperator.EQ,
         description="Operator for topological_polar_surface_area comparison",
     )
-    rotatable_bond_count: Optional[int] = Field(
+    rotatable_bond_count: Optional[NumericOrRange] = Field(
         None, description="Rotatable bond count"
     )
     rotatable_bond_count_op: Optional[NumericOperator] = Field(
         NumericOperator.EQ, description="Operator for rotatable_bond_count comparison"
     )
-    hydrogen_bond_acceptors: Optional[int] = Field(
+    hydrogen_bond_acceptors: Optional[NumericOrRange] = Field(
         None, description="Hydrogen bond acceptors"
     )
     hydrogen_bond_acceptors_op: Optional[NumericOperator] = Field(
         NumericOperator.EQ,
         description="Operator for hydrogen_bond_acceptors comparison",
     )
-    hydrogen_bond_donors: Optional[int] = Field(
+    hydrogen_bond_donors: Optional[NumericOrRange] = Field(
         None, description="Hydrogen bond donors"
     )
     hydrogen_bond_donors_op: Optional[NumericOperator] = Field(
         NumericOperator.EQ, description="Operator for hydrogen_bond_donors comparison"
     )
-    hydrogen_bond_acceptors_lipinski: Optional[int] = Field(
+    hydrogen_bond_acceptors_lipinski: Optional[NumericOrRange] = Field(
         None, description="Lipinski hydrogen bond acceptors"
     )
     hydrogen_bond_acceptors_lipinski_op: Optional[NumericOperator] = Field(
         NumericOperator.EQ,
         description="Operator for hydrogen_bond_acceptors_lipinski comparison",
     )
-    hydrogen_bond_donors_lipinski: Optional[int] = Field(
+    hydrogen_bond_donors_lipinski: Optional[NumericOrRange] = Field(
         None, description="Lipinski hydrogen bond donors"
     )
     hydrogen_bond_donors_lipinski_op: Optional[NumericOperator] = Field(
         NumericOperator.EQ,
         description="Operator for hydrogen_bond_donors_lipinski comparison",
     )
-    lipinski_rule_of_five_violations: Optional[int] = Field(
+    lipinski_rule_of_five_violations: Optional[NumericOrRange] = Field(
         None, description="Lipinski rule of five violations"
     )
     lipinski_rule_of_five_violations_op: Optional[NumericOperator] = Field(
         NumericOperator.EQ,
         description="Operator for lipinski_rule_of_five_violations comparison",
     )
-    aromatic_rings_count: Optional[int] = Field(
+    aromatic_rings_count: Optional[NumericOrRange] = Field(
         None, description="Aromatic rings count"
     )
     aromatic_rings_count_op: Optional[NumericOperator] = Field(
         NumericOperator.EQ, description="Operator for aromatic_rings_count comparison"
     )
-    qed_drug_likeliness: Optional[float] = Field(
+    qed_drug_likeliness: Optional[NumericOrRange] = Field(
         None, description="QED drug-likeliness score"
     )
     qed_drug_likeliness_op: Optional[NumericOperator] = Field(
         NumericOperator.EQ, description="Operator for qed_drug_likeliness comparison"
     )
-    formal_charge: Optional[int] = Field(None, description="Formal charge")
+    formal_charge: Optional[NumericOrRange] = Field(None, description="Formal charge")
     formal_charge_op: Optional[NumericOperator] = Field(
         NumericOperator.EQ, description="Operator for formal_charge comparison"
     )
-    fractioncsp3: Optional[float] = Field(None, description="Fraction of sp3 carbons")
+    fractioncsp3: Optional[NumericOrRange] = Field(
+        None, description="Fraction of sp3 carbons"
+    )
     fractioncsp3_op: Optional[NumericOperator] = Field(
         NumericOperator.EQ, description="Operator for fractioncsp3 comparison"
     )
-    number_of_minimal_rings: Optional[int] = Field(
+    number_of_minimal_rings: Optional[NumericOrRange] = Field(
         None, description="Number of minimal rings"
     )
     number_of_minimal_rings_op: Optional[NumericOperator] = Field(
         NumericOperator.EQ,
         description="Operator for number_of_minimal_rings comparison",
     )
-    van_der_walls_volume: Optional[float] = Field(
+    van_der_walls_volume: Optional[NumericOrRange] = Field(
         None, description="Van der Waals volume"
     )
     van_der_walls_volume_op: Optional[NumericOperator] = Field(
@@ -277,7 +336,7 @@ class CompoundSearchBase(BaseModel):
         None, description="Whether the compound contains linear sugars"
     )
     murcko_framework: Optional[str] = Field(None, description="Murcko framework")
-    np_likeness: Optional[float] = Field(
+    np_likeness: Optional[NumericOrRange] = Field(
         None, description="Natural product likeness score"
     )
     np_likeness_op: Optional[NumericOperator] = Field(
