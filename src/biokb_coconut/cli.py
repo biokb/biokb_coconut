@@ -15,19 +15,23 @@ from biokb_coconut.rdf.neo4j_importer import Neo4jImporter
 from biokb_coconut.rdf.turtle import TurtleCreator
 
 
-def setup_logging(ctx, param, value) -> None:
-    # Only set up logging if the user actually asks for it
-    if value == 1:
-        logging.getLogger("biokb_coconut").setLevel(logging.INFO)
-    elif value >= 2:
-        logging.getLogger("biokb_coconut").setLevel(logging.DEBUG)
+def _setup_default_cli_logging() -> None:
+    package_logger = logging.getLogger("biokb_coconut")
 
-    # We must add a handler so the logs actually print to the screen
-    if value > 0:
-        ch = logging.StreamHandler()
-        formatter = logging.Formatter("%(name)s - %(levelname)s - %(message)s")
-        ch.setFormatter(formatter)
-        logging.getLogger("fetcher").addHandler(ch)
+    has_cli_handler = any(
+        getattr(handler, "_biokb_cli_handler", False)
+        for handler in package_logger.handlers
+    )
+    if not has_cli_handler:
+        stream_handler = logging.StreamHandler()
+        stream_handler.setFormatter(
+            logging.Formatter("%(name)s - %(levelname)s - %(message)s")
+        )
+        setattr(stream_handler, "_biokb_cli_handler", True)
+        package_logger.addHandler(stream_handler)
+
+    package_logger.setLevel(logging.INFO)
+    package_logger.propagate = False
 
 
 @click.group()
@@ -40,7 +44,7 @@ def main() -> None:
     2. Create TTL files using `create-ttls` command.\n
     3. Import TTL files into Neo4j using `import-neo4j` command.\n
     """
-    pass
+    _setup_default_cli_logging()
 
 
 @main.command("import-data")
