@@ -10,7 +10,7 @@ BASIC_NODE_LABEL = "DbCoconut"
 ORGANIZATION = "biokb"
 LIBRARY_NAME = f"{ORGANIZATION}_{PROJECT_NAME}"
 HOME = str(Path.home())
-BIOKB_FOLDER = os.path.join(HOME, f".{ORGANIZATION}")
+BIOKB_FOLDER = os.getenv("BIOKB_FOLDER", os.path.join(HOME, f".{ORGANIZATION}"))
 PROJECT_FOLDER = os.path.join(BIOKB_FOLDER, PROJECT_NAME)
 DATA_FOLDER = os.path.join(PROJECT_FOLDER, "data")
 EXPORT_FOLDER = os.path.join(DATA_FOLDER, "ttls")
@@ -29,7 +29,6 @@ os.makedirs(DATA_FOLDER, exist_ok=True)
 WCVP_ZIP_FILE = "wcvp.zip"
 WCVP_ZIP_FILE_PATH = os.path.join(DATA_FOLDER, WCVP_ZIP_FILE)
 WCVP_NAMES_FILE = "wcvp_names.csv"
-
 
 
 DOWNLOAD_LINK_TEMPLATE = "https://coconut.s3.uni-jena.de/prod/downloads/{year}-{month:02d}/coconut_csv-{month:02d}-{year}.zip"

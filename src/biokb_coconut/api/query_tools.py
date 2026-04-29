@@ -53,6 +53,22 @@ def build_dynamic_query(
     if offset is not None:
         stmt = stmt.offset(offset)
 
+    order_by = payload.get("order_by")  # type: ignore
+    # check if the order_by field is a valid column of the model
+    if order_by is not None and not hasattr(model_cls, order_by):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid 'order_by' field: '{order_by}'. No such column in the model.",
+        )
+    if order_by is not None:
+        stmt = stmt.order_by(order_by)
+        order_desc = payload.get("order_desc")  # type: ignore
+        if order_desc is not None:
+            if isinstance(order_desc, bool) and order_desc:
+                stmt = stmt.order_by(getattr(model_cls, order_by).desc())
+            else:
+                stmt = stmt.order_by(getattr(model_cls, order_by).asc())
+
     # print the real SQL
     logger.info(
         f"Executing SQL: {stmt.compile(db.bind)} with params: {stmt.compile(db.bind).params}"

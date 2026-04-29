@@ -68,6 +68,17 @@ class OffsetLimit(BaseModel):
     offset: int = 0
 
 
+class OrderBy(BaseModel):
+    order_by: Optional[str] = Field(
+        None,
+        description="Field name to order the results by",
+    )
+    order_desc: bool = Field(
+        False,
+        description="Whether to order the results in descending order",
+    )
+
+
 class Name(BaseModel):
     id: int = Field(..., description="Primary key, unique identifier")
     name: str = Field(..., description="Name")
@@ -357,7 +368,14 @@ class CompoundSearchBase(BaseModel):
 
 
 class CompoundSearch(CompoundSearchBase, OffsetLimit):
-    pass
+    order_by: Optional[str] = Field(
+        None,
+        description="Field name to order the results by",
+    )
+    order_desc: bool = Field(
+        False,
+        description="Whether to order the results in descending order",
+    )
 
 
 class CompoundSearchResult(BaseModel):
