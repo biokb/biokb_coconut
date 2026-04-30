@@ -372,7 +372,7 @@ class CompoundSearch(CompoundSearchBase, OffsetLimit):
         None,
         description="Field name to order the results by",
     )
-    order_desc: bool = Field(
+    order_desc: Optional[bool] = Field(
         False,
         description="Whether to order the results in descending order",
     )
