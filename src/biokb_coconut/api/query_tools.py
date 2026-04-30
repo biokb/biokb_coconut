@@ -61,13 +61,11 @@ def build_dynamic_query(
             detail=f"Invalid 'order_by' field: '{order_by}'. No such column in the model.",
         )
     if order_by is not None:
-        stmt = stmt.order_by(order_by)
         order_desc = payload.get("order_desc")  # type: ignore
-        if order_desc is not None:
-            if isinstance(order_desc, bool) and order_desc:
-                stmt = stmt.order_by(getattr(model_cls, order_by).desc())
-            else:
-                stmt = stmt.order_by(getattr(model_cls, order_by).asc())
+        if order_desc == "true" or order_desc is True:
+            stmt = stmt.order_by(getattr(model_cls, order_by).desc())
+        else:
+            stmt = stmt.order_by(getattr(model_cls, order_by).asc())
 
     # print the real SQL
     logger.info(
