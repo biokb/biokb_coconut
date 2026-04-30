@@ -280,6 +280,10 @@ async def get_compounds_statistics(
             c.number_of_minimal_rings,
             c.van_der_walls_volume,
             c.np_likeness,
+            c.contains_sugar,
+            c.contains_ring_sugars,
+            c.contains_linear_sugars,
+            c.np_classifier_is_glycoside,
         )
         .where(*filters)
         .limit(10000)
@@ -287,9 +291,9 @@ async def get_compounds_statistics(
     result = session.execute(stmt).all()
     df = pd.DataFrame(result).astype(float)
     all = df.shape[0]
-    quartiles = {}
+    statistics = {}
     for col in df.columns:
-        quartiles[col] = {
+        statistics[col] = {
             "min": round(df[col].min(), 2),
             "q25": round(df[col].quantile(0.25), 2),
             "q50": round(df[col].quantile(0.5), 2),
@@ -297,7 +301,25 @@ async def get_compounds_statistics(
             "max": round(df[col].max(), 2),
             "not_null_percentage": round(int(df[col].notnull().sum()) / all * 100, 1),
         }
-    return schemas.CompoundSearchResultStatistics(**quartiles)
+
+    # statistics for boolean properties
+    boolean_cols = [
+        "contains_sugar",
+        "contains_ring_sugars",
+        "contains_linear_sugars",
+        "np_classifier_is_glycoside",
+    ]
+    for col in boolean_cols:
+        true_count = df[col].sum()
+        false_count = (df[col] == False).sum()  # noqa: E712
+        null_count = df[col].isnull().sum()
+        statistics[col] = {
+            "true_percentage": round(true_count / all * 100, 1),
+            "false_percentage": round(false_count / all * 100, 1),
+            "null_percentage": round(null_count / all * 100, 1),
+        }
+
+    return schemas.CompoundSearchResultStatistics(**statistics)
 
 
 @app.get("/compound/", response_model=schemas.CompoundDetail, tags=[Tag.COMPOUND])

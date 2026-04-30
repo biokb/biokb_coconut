@@ -397,6 +397,12 @@ class Quartile(BaseModel):
     )
 
 
+class BooleanStatistics(BaseModel):
+    true_percentage: float = Field(..., description="Percentage of true values")
+    false_percentage: float = Field(..., description="Percentage of false values")
+    null_percentage: float = Field(..., description="Percentage of null values")
+
+
 class CompoundSearchResultStatistics(BaseModel):
     total_atom_count: Quartile
     heavy_atom_count: Quartile
@@ -415,6 +421,10 @@ class CompoundSearchResultStatistics(BaseModel):
     number_of_minimal_rings: Quartile
     van_der_walls_volume: Quartile
     np_likeness: Quartile
+    contains_sugar: BooleanStatistics
+    contains_ring_sugars: BooleanStatistics
+    contains_linear_sugars: BooleanStatistics
+    np_classifier_is_glycoside: BooleanStatistics
 
 
 class DOIBase(BaseModel):
