@@ -378,6 +378,17 @@ class CompoundSearch(CompoundSearchBase, OffsetLimit):
     )
 
 
+class CompoundSearchExportFile(CompoundSearchBase):
+    order_by: Optional[str] = Field(
+        None,
+        description="Field name to order the results by",
+    )
+    order_desc: Optional[bool] = Field(
+        False,
+        description="Whether to order the results in descending order",
+    )
+
+
 class CompoundSearchResult(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     count: int

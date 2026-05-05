@@ -1,4 +1,5 @@
 import logging
+import operator
 import os
 import secrets
 from contextlib import asynccontextmanager
@@ -9,13 +10,14 @@ import pandas as pd
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from rdkit import Chem
 from rdkit.Chem import AllChem, Draw, rdDepictor
-from sqlalchemy import Engine, create_engine, select
+from sqlalchemy import Engine, create_engine, func, select
 from sqlalchemy.engine.row import Row
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import operators
 
 from biokb_coconut.api import schemas
 from biokb_coconut.api.query_tools import (
@@ -247,6 +249,141 @@ async def search_compounds(
 
 
 @app.get(
+    "/compounds/export",
+    response_model=schemas.CompoundSearchResult,
+    tags=[Tag.COMPOUND],
+)
+async def export_compounds(
+    search: schemas.CompoundSearchExportFile = Depends(),
+    session: Session = Depends(get_session),
+) -> StreamingResponse:
+    """
+    Export compounds. Returns a list of compounds with their organisms.
+    """
+    c = models.Compound
+    filters = create_dynamic_query_filters(search_obj=search, model_cls=c)
+    # get all which are not foreign keys
+    columns = [
+        col
+        for col in c.__table__.columns
+        if not col.foreign_keys and col.primary_key is False
+    ]
+
+    stmt_compounds = (
+        select(
+            *columns,
+            models.ChemicalClass.name.label("chemical_class"),
+            models.ChemicalSubClass.name.label("chemical_sub_class"),
+            models.DirectParentClassification.name.label(
+                "direct_parent_classification"
+            ),
+            models.ChemicalSuperClass.name.label("chemical_super_class"),
+            models.NpClassifierPathway.name.label("np_classifier_pathway"),
+            models.NpClassifierClass.name.label("np_classifier_class"),
+            models.NpClassifierSuperclass.name.label("np_classifier_superclass"),
+            func.group_concat(models.Organism.name).label("organism_names"),
+        )
+        .select_from(c)
+        .outerjoin(models.CompoundOrganism)
+        .outerjoin(models.Organism)
+        .outerjoin(models.ChemicalClass)
+        .outerjoin(models.ChemicalSubClass)
+        .outerjoin(models.DirectParentClassification)
+        .outerjoin(models.ChemicalSuperClass)
+        .outerjoin(models.NpClassifierPathway)
+        .outerjoin(models.NpClassifierClass)
+        .outerjoin(models.NpClassifierSuperclass)
+        .where(*filters)
+        .group_by(c.identifier)
+        .limit(1000)
+    )
+
+    if search.order_by:
+        order_col = getattr(c, search.order_by, None)
+        if order_col is not None:
+            if search.order_desc:
+                stmt_compounds = stmt_compounds.order_by(order_col.desc())
+            else:
+                stmt_compounds = stmt_compounds.order_by(order_col.asc())
+
+    result_compounds = session.execute(stmt_compounds).all()
+    df_compounds = pd.DataFrame(result_compounds)
+
+    OP_SYMBOLS = {
+        operator.gt: ">",
+        operator.lt: "<",
+        operator.ge: ">=",
+        operator.le: "<=",
+        operator.eq: "=",
+        operator.ne: "!=",
+        operators.between_op: "BETWEEN",
+        operators.like_op: "LIKE",
+    }
+
+    col_replace = {}
+    for filter in filters:
+        operator_symbol = OP_SYMBOLS.get(filter.operator, str(filter.operator))
+        column_name = getattr(filter.left, "key", None) or getattr(
+            filter.left, "name", None
+        )
+        if column_name is None:
+            logger.warning(
+                f"Could not extract column name from filter: {filter}. Skipping this filter in column renaming."
+            )
+            continue
+        column_name = (
+            column_name.replace("_id", "")
+            if column_name.endswith("_id")
+            else column_name
+        )
+        value = (
+            str(filter.right.value)
+            if hasattr(filter.right, "value")
+            else str(filter.right)
+        )
+        col_replace[column_name] = f"{column_name} {operator_symbol} {value}"
+    df_compounds.rename(columns=col_replace, inplace=True)
+
+    # organism
+
+    output = BytesIO()
+    # create Excel file in memory with multiple sheets
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df_compounds.to_excel(writer, index=False, sheet_name="compounds")
+
+        # Apply light orange fill to the 'identifier' column header in 'compounds' sheet
+        from openpyxl.styles import PatternFill
+
+        ws_comp = writer.sheets["compounds"]
+
+        # freeze the header row and the first column
+        ws_comp.freeze_panes = "B2"
+
+        # header bold
+        for cell in ws_comp[1]:
+            cell.font = cell.font.copy(bold=True)
+            cell.fill = PatternFill(start_color="faffa4", fill_type="solid")
+
+        lable_color = PatternFill(start_color="3eff13", fill_type="solid")
+        for col in col_replace.values():
+            if col in df_compounds.columns:
+                col_index = df_compounds.columns.get_loc(col)
+                if isinstance(col_index, int):
+                    col_idx = col_index + 1  # 1-based index
+                    ws_comp.cell(row=1, column=col_idx).fill = lable_color
+
+    # Move cursor to beginning
+    output.seek(0)
+
+    # Return as streaming response
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=ethcstwin_selected.xlsx"},
+    )
+
+
+@app.get(
     "/compounds/statistics/",
     response_model=schemas.CompoundSearchResultStatistics,
     tags=[Tag.COMPOUND],
@@ -261,33 +398,29 @@ async def get_compounds_statistics(
     c = models.Compound
     filters = create_dynamic_query_filters(search_obj=search, model_cls=c)
 
-    stmt = (
-        select(
-            c.total_atom_count,
-            c.heavy_atom_count,
-            c.molecular_weight,
-            c.alogp,
-            c.topological_polar_surface_area,
-            c.rotatable_bond_count,
-            c.hydrogen_bond_acceptors,
-            c.hydrogen_bond_donors,
-            c.hydrogen_bond_acceptors_lipinski,
-            c.hydrogen_bond_donors_lipinski,
-            c.aromatic_rings_count,
-            c.qed_drug_likeliness,
-            c.formal_charge,
-            c.fractioncsp3,
-            c.number_of_minimal_rings,
-            c.van_der_walls_volume,
-            c.np_likeness,
-            c.contains_sugar,
-            c.contains_ring_sugars,
-            c.contains_linear_sugars,
-            c.np_classifier_is_glycoside,
-        )
-        .where(*filters)
-        .limit(10000)
-    )
+    stmt = select(
+        c.total_atom_count,
+        c.heavy_atom_count,
+        c.molecular_weight,
+        c.alogp,
+        c.topological_polar_surface_area,
+        c.rotatable_bond_count,
+        c.hydrogen_bond_acceptors,
+        c.hydrogen_bond_donors,
+        c.hydrogen_bond_acceptors_lipinski,
+        c.hydrogen_bond_donors_lipinski,
+        c.aromatic_rings_count,
+        c.qed_drug_likeliness,
+        c.formal_charge,
+        c.fractioncsp3,
+        c.number_of_minimal_rings,
+        c.van_der_walls_volume,
+        c.np_likeness,
+        c.contains_sugar,
+        c.contains_ring_sugars,
+        c.contains_linear_sugars,
+        c.np_classifier_is_glycoside,
+    ).where(*filters)
     result = session.execute(stmt).all()
     df = pd.DataFrame(result).astype(float)
     all = df.shape[0]
