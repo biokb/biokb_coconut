@@ -286,11 +286,6 @@ async def search_compounds(
         query = query.outerjoin(models.CompoundOrganism).outerjoin(models.Organism)
     query = query.where(*filters)
 
-    if search.limit is not None:
-        query = query.limit(search.limit)
-    if search.offset is not None:
-        query = query.offset(search.offset)
-
     # NOTE: This assumes that the 'order_by' field corresponds to a column in the Compound model.
     if search.order_by is not None and not hasattr(models.Compound, search.order_by):
         raise HTTPException(
@@ -302,6 +297,11 @@ async def search_compounds(
             query = query.order_by(getattr(models.Compound, search.order_by).desc())
         else:
             query = query.order_by(getattr(models.Compound, search.order_by).asc())
+
+    if search.limit is not None:
+        query = query.limit(search.limit)
+    if search.offset is not None:
+        query = query.offset(search.offset)
 
     # logger.info(f"Executing query: {query}")
 
