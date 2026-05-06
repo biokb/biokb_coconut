@@ -358,6 +358,9 @@ class CompoundSearchBase(BaseModel):
     number_of_organisms: Optional[NumericOrRange] = Field(
         None, description="Number of organisms associated with the compound"
     )
+    number_of_organisms_op: Optional[NumericOperator] = Field(
+        NumericOperator.EQ, description="Operator for number_of_organisms comparison"
+    )
 
     model_config = ConfigDict(from_attributes=True)
 
