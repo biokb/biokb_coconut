@@ -262,7 +262,7 @@ class DbManager:
         column_names = [
             column.name
             for column in models.Compound.__table__.columns
-            if column.name != "id"
+            if column.name not in ("id", "number_of_organisms")
         ]
         df.reset_index(inplace=True)
         df.index += 1
@@ -330,6 +330,7 @@ class DbManager:
         inserted[models.CAS.__tablename__] = u5
         inserted[models.CompoundCAS.__tablename__] = j5
 
+        self.update_number_of_organisms()
         self.update_organism_tax_ids(delete_files=delete_files)
         self.update_other_organism_ids_by_wcvp()
 
@@ -337,6 +338,31 @@ class DbManager:
             os.remove(path_to_file)
             logger.info("Removed downloaded file %s", path_to_file)
         return inserted
+
+    def update_number_of_organisms(self) -> None:
+        """Update the number_of_organisms field in the Compound table based on the count of related organisms."""
+        logger.info("Updating number_of_organisms in Compound table")
+        with self.Session() as session:
+            from sqlalchemy import func, select, update
+
+            # Subquery (your "b")
+            subq = (
+                select(
+                    models.CompoundOrganism.compound_id,
+                    func.count().label("number_of_organisms"),
+                )
+                .group_by(models.CompoundOrganism.compound_id)
+                .subquery()
+            )
+
+            # Update statement
+            stmt = (
+                update(models.Compound)
+                .values(number_of_organisms=subq.c.number_of_organisms)
+                .where(models.Compound.id == subq.c.compound_id)
+            )
+            session.execute(stmt)
+            session.commit()
 
     def import_n2m_column(
         self,

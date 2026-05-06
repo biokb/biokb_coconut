@@ -68,17 +68,6 @@ class OffsetLimit(BaseModel):
     offset: int = 0
 
 
-class OrderBy(BaseModel):
-    order_by: Optional[str] = Field(
-        None,
-        description="Field name to order the results by",
-    )
-    order_desc: bool = Field(
-        False,
-        description="Whether to order the results in descending order",
-    )
-
-
 class Name(BaseModel):
     id: int = Field(..., description="Primary key, unique identifier")
     name: str = Field(..., description="Name")
@@ -139,6 +128,9 @@ class CompoundBase2(BaseModel):
     np_likeness: float = Field(..., description="Natural product likeness score")
     np_classifier_is_glycoside: Optional[bool] = Field(
         None, description="NPClassifier is glycoside"
+    )
+    number_of_organisms: Optional[int] = Field(
+        None, description="Number of organisms associated with the compound"
     )
 
 
@@ -363,11 +355,15 @@ class CompoundSearchBase(BaseModel):
     np_classifier_pathway_id: Optional[int] = None
     np_classifier_superclass_id: Optional[int] = None
     np_classifier_class_id: Optional[int] = None
+    number_of_organisms: Optional[NumericOrRange] = Field(
+        None, description="Number of organisms associated with the compound"
+    )
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class CompoundSearch(CompoundSearchBase, OffsetLimit):
+class CompoundOrganismSearch(CompoundSearchBase, OffsetLimit):
+    organism_name: Optional[str] = Field(None, description="Organism name")
     order_by: Optional[str] = Field(
         None,
         description="Field name to order the results by",
@@ -561,14 +557,6 @@ class CollectionBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class Collection(CollectionBase):
-    compound_identifiers: List[str] = Field(
-        [], description="List of compound identifiers associated with this collection"
-    )
-
-    model_config = ConfigDict(from_attributes=True)
-
-
 class Collection_with_compound_identifiers(CollectionBase):
     compound_identifiers: List[str] = Field(
         [], description="List of compound identifiers associated with this collection"
@@ -595,14 +583,6 @@ class ChemicalClassBase(BaseModel):
         ..., description="Primary key, unique identifier for the chemical class"
     )
     name: str = Field(..., description="Name of the chemical class")
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class ChemicalClass(ChemicalClassBase):
-    compounds: List[CompoundBase] = Field(
-        [], description="List of compounds associated with this chemical class"
-    )
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -673,15 +653,6 @@ class DirectParentClassificationBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class DirectParentClassification(DirectParentClassificationBase):
-    compounds: List[CompoundBase] = Field(
-        [],
-        description="List of compounds associated with this direct parent classification",
-    )
-
-    model_config = ConfigDict(from_attributes=True)
-
-
 class DirectParentClassificationWithCompoundIDs(DirectParentClassificationBase):
     compound_identifiers: List[str] = Field(
         [],
@@ -714,14 +685,6 @@ class ChemicalSuperClassBase(BaseModel):
         ..., description="Primary key, unique identifier for the chemical superclass"
     )
     name: str = Field(..., description="Name of the chemical superclass")
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class ChemicalSuperClass(ChemicalSuperClassBase):
-    compounds: List[CompoundBase] = Field(
-        [], description="List of compounds associated with this chemical superclass"
-    )
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -759,14 +722,6 @@ class NpClassifierPathwayBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class NpClassifierPathway(NpClassifierPathwayBase):
-    compounds: List[CompoundBase] = Field(
-        [], description="List of compounds associated with this NP classifier pathway"
-    )
-
-    model_config = ConfigDict(from_attributes=True)
-
-
 class NpClassifierPathwayWithCompoundIDs(NpClassifierPathwayBase):
     compound_identifiers: List[str] = Field(
         [],
@@ -797,15 +752,6 @@ class NpClassifierSuperclassBase(BaseModel):
         description="Primary key, unique identifier for the NP classifier superclass",
     )
     name: str = Field(..., description="Name of the NP classifier superclass")
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class NpClassifierSuperclass(NpClassifierSuperclassBase):
-    compounds: List[CompoundBase] = Field(
-        [],
-        description="List of compounds associated with this NP classifier superclass",
-    )
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -846,14 +792,6 @@ class NpClassifierClassBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class NpClassifierClass(NpClassifierClassBase):
-    compounds: List[CompoundBase] = Field(
-        [], description="List of compounds associated with this NP classifier class"
-    )
-
-    model_config = ConfigDict(from_attributes=True)
-
-
 class NpClassifierClassWithCompoundIDs(NpClassifierClassBase):
     compound_identifiers: List[str] = Field(
         [],
@@ -876,11 +814,3 @@ class NpClassifierClassSearchResult(BaseModel):
     offset: int
     limit: int
     results: List[NpClassifierClassWithCompoundIDs]
-
-
-class Organism(OrganismBase):
-    compounds: List[CompoundBase] = Field(
-        [], description="List of compounds associated with this organism"
-    )
-
-    model_config = ConfigDict(from_attributes=True)

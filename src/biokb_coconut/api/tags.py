@@ -5,3 +5,5 @@ from enum import StrEnum
 class Tag(StrEnum):
     DBMANAGE = "Database Management"
     COMPOUND = "Compound"
+    ORGANISM = "Organism"
+    NP_CLASSIFIER = "NP Classifier"

@@ -1,12 +1,13 @@
 import logging
 from datetime import date, datetime
 from enum import Enum
-from typing import Sequence, Type, TypeAlias, Union, get_args, get_origin
+from typing import Sequence, Tuple, Type, TypeAlias, Union, get_args, get_origin
 
 from fastapi import HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.selectable import Select
 
 from biokb_coconut.api.schemas import RANGE_PATTERN, NumericOperator, NumericOrRange
 from biokb_coconut.db import models
@@ -33,6 +34,24 @@ def build_dynamic_query(
     attributes of a Pydantic model instance.  The operator is inferred from
     each field's *declared* type, not the runtime value.
     """
+    stmt, count_stmt, limit, offset = build_dynamic_statements(search_obj, model_cls)
+    return {
+        "count": db.execute(count_stmt).scalar(),
+        "limit": limit,
+        "offset": offset,
+        "results": db.execute(stmt).scalars().all(),
+    }
+
+
+def build_dynamic_statements(
+    search_obj: BaseModel,
+    model_cls: Type[models.Base],
+) -> tuple[Select, Select, int | None, int | None]:
+    """
+    Build and execute a SQLAlchemy 2.0-style SELECT based on the non-None
+    attributes of a Pydantic model instance.  The operator is inferred from
+    each field's *declared* type, not the runtime value.
+    """
     try:
         filters = create_dynamic_query_filters(search_obj, model_cls)
     except ValueError as e:
@@ -44,7 +63,6 @@ def build_dynamic_query(
     payload = search_obj.model_dump(exclude_none=True, mode="json")
 
     count_stmt = select(func.count()).select_from(stmt.subquery())
-    total_count = db.execute(count_stmt).scalar()
 
     limit = payload.get("limit")
     if limit is not None:
@@ -67,17 +85,7 @@ def build_dynamic_query(
         else:
             stmt = stmt.order_by(getattr(model_cls, order_by).asc())
 
-    # print the real SQL
-    logger.info(
-        f"Executing SQL: {stmt.compile(db.bind)} with params: {stmt.compile(db.bind).params}"
-    )
-
-    return {
-        "count": total_count,
-        "limit": limit,
-        "offset": offset,
-        "results": db.execute(stmt).scalars().all(),
-    }
+    return stmt, count_stmt, limit, offset
 
 
 def create_dynamic_query_filters(search_obj, model_cls):

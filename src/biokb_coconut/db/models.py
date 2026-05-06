@@ -7,7 +7,7 @@ relationship function."""
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import Column, ForeignKey, Index, Integer, Numeric, String, Text
+from sqlalchemy import Column, ForeignKey, Index, Integer, Numeric, String, Text, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from biokb_coconut import constants
@@ -210,6 +210,9 @@ class Compound(Base):
     murcko_framework: Mapped[Optional[str]] = mapped_column(Text)
     np_likeness: Mapped[Decimal] = mapped_column(Numeric(5, 2))
     np_classifier_is_glycoside: Mapped[Optional[bool]]
+    number_of_organisms: Mapped[Optional[int]] = mapped_column(
+        Integer, default=0, server_default=text("0")
+    )
 
     # foreign keys to classification tables
     chemical_class_id: Mapped[Optional[int]] = mapped_column(
@@ -272,6 +275,10 @@ class Compound(Base):
     cas_numbers: Mapped[list["CAS"]] = relationship(
         secondary=CompoundCAS.__table__, back_populates="compounds"
     )
+
+    @property
+    def organism_names(self) -> list[str]:
+        return [organism.name for organism in self.organisms]
 
     def __repr__(self) -> str:
         return (

@@ -2,8 +2,10 @@ import logging
 import operator
 import os
 import secrets
+from ast import stmt
 from contextlib import asynccontextmanager
 from io import BytesIO
+from turtle import st
 from typing import AsyncGenerator, Generator, Sequence, Tuple
 
 import pandas as pd
@@ -231,21 +233,125 @@ async def import_neo4j(
 
 
 @app.get(
-    "/compounds/", response_model=schemas.CompoundSearchResult, tags=[Tag.COMPOUND]
+    "/compounds/",
+    response_model=schemas.CompoundSearchResult,
+    tags=[Tag.COMPOUND],
 )
 async def search_compounds(
-    search: schemas.CompoundSearch = Depends(),
+    search: schemas.CompoundOrganismSearch = Depends(),
     session: Session = Depends(get_session),
-) -> SASearchResults | dict[str, str]:
+):
     """
     Search compounds. Returns a list of compounds with their DOIs,
     synonyms, organisms, collections, and CAS numbers.
     """
-    return build_dynamic_query(
-        search_obj=search,
-        model_cls=models.Compound,
-        db=session,
+    try:
+        filters = create_dynamic_query_filters(search, models.Compound)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_102_PROCESSING,
+            detail=e,
+        )
+
+    # Build the count_stmt with the same filters to get the total count
+    # -----------------------------------------------------------------
+
+    # Add organism filter if organism_name is provided
+    if search.organism_name:
+        filters.append(models.Organism.name.like(search.organism_name))
+
+    count_stmt = select(func.count(models.Compound.id)).select_from(models.Compound)
+
+    # Only join with organisms if organism_name filter is provided to avoid unnecessary joins
+    if search.organism_name:
+        count_stmt = count_stmt.join(models.Compound.organisms).group_by(
+            models.Compound.id
+        )
+
+    count_stmt = count_stmt.where(*filters)
+    # Because of the potential group_by when filtering by organism, we need to wrap
+    # the count_stmt in another select to get the total count
+    if search.organism_name:
+        count_stmt = select(func.count()).select_from(count_stmt.subquery())
+
+    # logger.info(f"Executing count query: {count_stmt}")
+    count = session.execute(count_stmt).scalar() or 0
+
+    # Build the main query with the same filters
+
+    query = session.query(
+        models.Compound,
+    ).select_from(models.Compound)
+    if search.organism_name:
+        query = query.outerjoin(models.CompoundOrganism).outerjoin(models.Organism)
+    query = query.where(*filters)
+
+    if search.limit is not None:
+        query = query.limit(search.limit)
+    if search.offset is not None:
+        query = query.offset(search.offset)
+
+    # NOTE: This assumes that the 'order_by' field corresponds to a column in the Compound model.
+    if search.order_by is not None and not hasattr(models.Compound, search.order_by):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid 'order_by' field: '{search.order_by}'. No such column in the model.",
+        )
+    if search.order_by is not None:
+        if search.order_desc == "true" or search.order_desc is True:
+            query = query.order_by(getattr(models.Compound, search.order_by).desc())
+        else:
+            query = query.order_by(getattr(models.Compound, search.order_by).asc())
+
+    # logger.info(f"Executing query: {query}")
+
+    return {
+        "count": count,
+        "limit": search.limit,
+        "offset": search.offset,
+        "results": query.all(),
+    }
+
+
+@app.get(
+    "/organism/suggestions",
+    response_model=list[str],
+    tags=[Tag.ORGANISM],
+)
+async def suggest_organisms(
+    organism_search: str = Query(..., description="Organism name to search for"),
+    session: Session = Depends(get_session),
+) -> Sequence[str]:
+    """
+    Search compounds. Returns a list of compounds with their DOIs,
+    synonyms, organisms, collections, and CAS numbers.
+    """
+    stmt = (
+        select(models.Organism.name)
+        .where(models.Organism.name.ilike(f"{organism_search}%"))
+        .limit(10)
+        .order_by(models.Organism.name.asc())
     )
+    result: Sequence[str] = session.execute(stmt).scalars().all()
+    return result
+
+
+# @app.get(
+#     "/compounds/", response_model=schemas.CompoundSearchResult, tags=[Tag.COMPOUND]
+# )
+# async def search_compounds(
+#     search: schemas.CompoundSearch = Depends(),
+#     session: Session = Depends(get_session),
+# ) -> SASearchResults | dict[str, str]:
+#     """
+#     Search compounds. Returns a list of compounds with their DOIs,
+#     synonyms, organisms, collections, and CAS numbers.
+#     """
+#     return build_dynamic_query(
+#         search_obj=search,
+#         model_cls=models.Compound,
+#         db=session,
+#     )
 
 
 @app.get(
@@ -258,7 +364,7 @@ async def export_compounds(
     session: Session = Depends(get_session),
 ) -> StreamingResponse:
     """
-    Export compounds. Returns a list of compounds with their organisms.
+    Export compounds. Returns a list of max. 1000 compounds with their organisms.
     """
     c = models.Compound
     filters = create_dynamic_query_filters(search_obj=search, model_cls=c)
@@ -281,7 +387,7 @@ async def export_compounds(
             models.NpClassifierPathway.name.label("np_classifier_pathway"),
             models.NpClassifierClass.name.label("np_classifier_class"),
             models.NpClassifierSuperclass.name.label("np_classifier_superclass"),
-            func.group_concat(models.Organism.name).label("organism_names"),
+            func.group_concat(models.Organism.name.distinct()).label("organism_names"),
         )
         .select_from(c)
         .outerjoin(models.CompoundOrganism)
@@ -318,6 +424,7 @@ async def export_compounds(
         operator.ne: "!=",
         operators.between_op: "BETWEEN",
         operators.like_op: "LIKE",
+        operators.is_: "IS",
     }
 
     col_replace = {}
@@ -883,7 +990,7 @@ async def get_chemical_super_class_names(
 @app.get(
     "/np_classifier_pathway/",
     response_model=schemas.NpClassifierPathwaySearchResult,
-    tags=[Tag.COMPOUND],
+    tags=[Tag.NP_CLASSIFIER],
 )
 async def search_np_classifier_pathway(
     search: schemas.NpClassifierPathwaySearch = Depends(),
@@ -903,7 +1010,7 @@ async def search_np_classifier_pathway(
 @app.get(
     "/np_classifier_pathway/names",
     response_model=list[schemas.Name],
-    tags=[Tag.COMPOUND],
+    tags=[Tag.NP_CLASSIFIER],
 )
 async def get_np_classifier_pathway_names(
     session: Session = Depends(get_session),
@@ -930,7 +1037,7 @@ async def get_np_classifier_pathway_names(
 @app.get(
     "/np_classifier_superclass/",
     response_model=schemas.NpClassifierSuperclassSearchResult,
-    tags=[Tag.COMPOUND],
+    tags=[Tag.NP_CLASSIFIER],
 )
 async def search_np_classifier_superclass(
     search: schemas.NpClassifierSuperclassSearch = Depends(),
@@ -949,7 +1056,7 @@ async def search_np_classifier_superclass(
 @app.get(
     "/np_classifier_superclass/names",
     response_model=list[schemas.Name],
-    tags=[Tag.COMPOUND],
+    tags=[Tag.NP_CLASSIFIER],
 )
 async def get_np_classifier_superclass_names(
     session: Session = Depends(get_session),
@@ -976,7 +1083,7 @@ async def get_np_classifier_superclass_names(
 @app.get(
     "/np_classifier_class/",
     response_model=schemas.NpClassifierClassSearchResult,
-    tags=[Tag.COMPOUND],
+    tags=[Tag.NP_CLASSIFIER],
 )
 async def search_np_classifier_class(
     search: schemas.NpClassifierClassSearch = Depends(),
@@ -995,7 +1102,7 @@ async def search_np_classifier_class(
 @app.get(
     "/np_classifier_class/names",
     response_model=list[schemas.Name],
-    tags=[Tag.COMPOUND],
+    tags=[Tag.NP_CLASSIFIER],
 )
 async def get_np_classifier_class_names(
     session: Session = Depends(get_session),
