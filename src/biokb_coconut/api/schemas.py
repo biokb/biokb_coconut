@@ -431,6 +431,7 @@ class CompoundSearchResultStatistics(BaseModel):
     number_of_minimal_rings: Quartile
     van_der_walls_volume: Quartile
     np_likeness: Quartile
+    number_of_organisms: Quartile
     contains_sugar: BooleanStatistics
     contains_ring_sugars: BooleanStatistics
     contains_linear_sugars: BooleanStatistics

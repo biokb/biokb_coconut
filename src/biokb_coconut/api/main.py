@@ -496,7 +496,7 @@ async def export_compounds(
     tags=[Tag.COMPOUND],
 )
 async def get_compounds_statistics(
-    search: schemas.CompoundSearchBase = Depends(),
+    search: schemas.CompoundOrganismSearch = Depends(),
     session: Session = Depends(get_session),
 ) -> schemas.CompoundSearchResultStatistics:
     """Get statistics of compounds matching the search criteria, including count and quartiles of various properties.
@@ -504,6 +504,8 @@ async def get_compounds_statistics(
     This will only work for the first 10,000 results to avoid performance issues."""
     c = models.Compound
     filters = create_dynamic_query_filters(search_obj=search, model_cls=c)
+    if search.organism_name:
+        filters.append(models.Organism.name.like(search.organism_name))
 
     stmt = select(
         c.total_atom_count,
@@ -527,7 +529,11 @@ async def get_compounds_statistics(
         c.contains_ring_sugars,
         c.contains_linear_sugars,
         c.np_classifier_is_glycoside,
+        c.number_of_organisms,
     ).where(*filters)
+    if search.organism_name:
+        stmt = stmt.join(models.CompoundOrganism).join(models.Organism).group_by(c.id)
+
     result = session.execute(stmt).all()
     df = pd.DataFrame(result).astype(float)
     all = df.shape[0]
