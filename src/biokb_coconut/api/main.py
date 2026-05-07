@@ -260,18 +260,24 @@ async def search_compounds(
     if search.organism_name:
         filters.append(models.Organism.name.like(search.organism_name))
 
+    if search.synonym:
+        filters.append(models.Synonym.name.like(search.synonym))
+
     count_stmt = select(func.count(models.Compound.id)).select_from(models.Compound)
 
     # Only join with organisms if organism_name filter is provided to avoid unnecessary joins
     if search.organism_name:
-        count_stmt = count_stmt.join(models.Compound.organisms).group_by(
-            models.Compound.id
-        )
+        count_stmt = count_stmt.join(models.Compound.organisms)
+    if search.synonym:
+        count_stmt = count_stmt.join(models.Compound.synonyms)
+
+    if search.organism_name or search.synonym:
+        count_stmt = count_stmt.group_by(models.Compound.id)
 
     count_stmt = count_stmt.where(*filters)
     # Because of the potential group_by when filtering by organism, we need to wrap
     # the count_stmt in another select to get the total count
-    if search.organism_name:
+    if search.organism_name or search.synonym:
         count_stmt = select(func.count()).select_from(count_stmt.subquery())
 
     # logger.info(f"Executing count query: {count_stmt}")
@@ -283,7 +289,9 @@ async def search_compounds(
         models.Compound,
     ).select_from(models.Compound)
     if search.organism_name:
-        query = query.outerjoin(models.CompoundOrganism).outerjoin(models.Organism)
+        query = query.join(models.Compound.organisms)
+    if search.synonym:
+        query = query.join(models.Compound.synonyms)
     query = query.where(*filters)
 
     # NOTE: This assumes that the 'order_by' field corresponds to a column in the Compound model.
@@ -322,10 +330,7 @@ async def suggest_organisms(
     organism_search: str = Query(..., description="Organism name to search for"),
     session: Session = Depends(get_session),
 ) -> Sequence[str]:
-    """
-    Search compounds. Returns a list of compounds with their DOIs,
-    synonyms, organisms, collections, and CAS numbers.
-    """
+    """Search organisms. Returns a list of organism names."""
     stmt = (
         select(models.Organism.name)
         .where(models.Organism.name.ilike(f"{organism_search}%"))
@@ -336,22 +341,24 @@ async def suggest_organisms(
     return result
 
 
-# @app.get(
-#     "/compounds/", response_model=schemas.CompoundSearchResult, tags=[Tag.COMPOUND]
-# )
-# async def search_compounds(
-#     search: schemas.CompoundSearch = Depends(),
-#     session: Session = Depends(get_session),
-# ) -> SASearchResults | dict[str, str]:
-#     """
-#     Search compounds. Returns a list of compounds with their DOIs,
-#     synonyms, organisms, collections, and CAS numbers.
-#     """
-#     return build_dynamic_query(
-#         search_obj=search,
-#         model_cls=models.Compound,
-#         db=session,
-#     )
+@app.get(
+    "/synonyms/suggestions",
+    response_model=list[str],
+    tags=[Tag.SYNONYMS],
+)
+async def suggest_synonyms(
+    synonym_search: str = Query(..., description="Synonym name to search for"),
+    session: Session = Depends(get_session),
+) -> Sequence[str]:
+    """Search synonyms. Returns a list of synonym names."""
+    stmt = (
+        select(models.Synonym.name)
+        .where(models.Synonym.name.ilike(f"{synonym_search}%"))
+        .limit(10)
+        .order_by(models.Synonym.name.asc())
+    )
+    result: Sequence[str] = session.execute(stmt).scalars().all()
+    return result
 
 
 @app.get(
@@ -575,10 +582,7 @@ async def get_compound(
         ..., description="Compound identifier", examples=["CNP0581134.2"]
     ),
 ) -> models.Compound | None:
-    """
-    Search compounds. Returns a list of compounds with their DOIs,
-    synonyms, organisms, collections, and CAS numbers.
-    """
+    """Get compound details by identifier."""
     return (
         session.query(models.Compound)
         .where(models.Compound.identifier == identifier)
@@ -725,7 +729,7 @@ async def search_dois(
 
 
 @app.get(
-    "/organisms/", response_model=schemas.OrganismSearchResult, tags=[Tag.COMPOUND]
+    "/organisms/", response_model=schemas.OrganismSearchResult, tags=[Tag.ORGANISM]
 )
 async def search_organisms(
     search: schemas.OrganismSearch = Depends(),
@@ -741,7 +745,7 @@ async def search_organisms(
     )
 
 
-@app.get("/synonyms/", response_model=schemas.SynonymSearchResult, tags=[Tag.COMPOUND])
+@app.get("/synonyms/", response_model=schemas.SynonymSearchResult, tags=[Tag.SYNONYMS])
 async def search_synonyms(
     search: schemas.SynonymSearch = Depends(),
     session: Session = Depends(get_session),

@@ -367,6 +367,7 @@ class CompoundSearchBase(BaseModel):
 
 class CompoundOrganismSearch(CompoundSearchBase, OffsetLimit):
     organism_name: Optional[str] = Field(None, description="Organism name")
+    synonym: Optional[str] = Field(None, description="Synonym of compound")
     order_by: Optional[str] = Field(
         None,
         description="Field name to order the results by",

@@ -7,3 +7,4 @@ class Tag(StrEnum):
     COMPOUND = "Compound"
     ORGANISM = "Organism"
     NP_CLASSIFIER = "NP Classifier"
+    SYNONYMS = "Synonyms"
