@@ -16,7 +16,7 @@ def get_and_validate_range_logic(
     v: Optional[str | int | float],
 ) -> Optional[int | float | str]:
     """Validate that the input string is in the format "min-max" and that min < max."""
-    logger.info(f"Validating range logic for value: {v}, type: {type(v)}")
+    # logger.info(f"Validating range logic for value: {v}, type: {type(v)}")
     if v is None or isinstance(
         v,
         (
@@ -375,6 +375,56 @@ class CompoundOrganismSearch(CompoundSearchBase, OffsetLimit):
     order_desc: Optional[bool] = Field(
         False,
         description="Whether to order the results in descending order",
+    )
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "examples": [
+                {
+                    "identifier": "CNP0255066.1",
+                    "canonical_smiles": "C[C@@H]1CC[C@@]23COC(=O)C2=C[C@@H](O[C@@H]2O[C@H](CO)[C@@H](O)[C@H](O)[C@H]2O)CC3[C@@]1(C)CCC1=COC=C1",
+                    "standard_inchi": "InChI=1S/C26H36O9/c1-14-3-7-26-13-33-23(31)17(26)9-16(34-24-22(30)21(29)20(28)18(11-27)35-24)10-19(26)25(14,2)6-4-15-5-8-32-12-15/h5,8-9,12,14,16,18-22,24,27-30H,3-4,6-7,10-11,13H2,1-2H3/t14-,16-,18-,19?,20-,21+,22-,24-,25+,26-/m1/s1",
+                    "standard_inchi_key": "ROSSVNHEVRUXGM-HEMPLKHUSA-N",
+                    "name": None,
+                    "iupac_name": "(5~{S},7~{S},8~{R},10~{a}~{S})-7-[2-(3-furyl)ethyl]-7,8-dimethyl-5-[(2~{R},3~{R},4~{S},5~{S},6~{R})-3,4,5-trihydroxy-6-(hydroxymethyl)tetrahydropyran-2-yl]oxy-5,6,6~{a},8,9,10-hexahydro-1~{H}-benzo[d]isobenzofuran-3-one",
+                    "annotation_level": "5",
+                    "total_atom_count": "71",
+                    "heavy_atom_count": "35",
+                    "molecular_weight": "492.57",
+                    "exact_molecular_weight": "492.23593",
+                    "molecular_formula": "C26H36O9",
+                    "alogp": "1.32",
+                    "topological_polar_surface_area": "138.82",
+                    "rotatable_bond_count": "6",
+                    "hydrogen_bond_acceptors": "9",
+                    "hydrogen_bond_donors": "4",
+                    "hydrogen_bond_acceptors_lipinski": "9",
+                    "hydrogen_bond_donors_lipinski": "4",
+                    "lipinski_rule_of_five_violations": "0",
+                    "aromatic_rings_count": "1",
+                    "qed_drug_likeliness": "0.43",
+                    "formal_charge": "0",
+                    "fractioncsp3": "0.73",
+                    "number_of_minimal_rings": "5",
+                    "van_der_walls_volume": "440.66",
+                    "contains_sugar": True,
+                    "contains_ring_sugars": True,
+                    "contains_linear_sugars": False,
+                    "murcko_framework": "o1ccc(c1)CCC2CCCC34C(=CC(OC5OCCCC5)CC23)COC4",
+                    "np_likeness": "3.02",
+                    "np_classifier_is_glycoside": True,
+                    "number_of_organisms": "1",
+                    "chemical_class_id": 274,
+                    "chemical_sub_class_id": 266,
+                    "direct_parent_classification_id": 1214,
+                    "chemical_super_class_id": 16,
+                    "np_classifier_pathway_id": 7,
+                    "np_classifier_superclass_id": 16,
+                    "np_classifier_class_id": 170,
+                }
+            ]
+        },
     )
 
 

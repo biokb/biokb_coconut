@@ -174,10 +174,10 @@ def create_dynamic_query_filters(search_obj, model_cls):
 
         # FALLBACK .....................................................................
         else:
-            logger.warning(
-                f"Unsupported type for field '{field_name}': {declared_type}. "
-                "Using equality operator as fallback."
-            )
+            # logger.warning(
+            #     f"Unsupported type for field '{field_name}': {declared_type}. "
+            #     "Using equality operator as fallback."
+            # )
             filters.append(column == value)
 
     return filters

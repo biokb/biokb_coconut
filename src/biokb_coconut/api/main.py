@@ -2,10 +2,8 @@ import logging
 import operator
 import os
 import secrets
-from ast import stmt
 from contextlib import asynccontextmanager
 from io import BytesIO
-from turtle import st
 from typing import AsyncGenerator, Generator, Sequence, Tuple
 
 import pandas as pd
@@ -232,13 +230,13 @@ async def import_neo4j(
 ###############################################################################
 
 
-@app.get(
+@app.post(
     "/compounds/",
     response_model=schemas.CompoundSearchResult,
     tags=[Tag.COMPOUND],
 )
 async def search_compounds(
-    search: schemas.CompoundOrganismSearch = Depends(),
+    search: schemas.CompoundOrganismSearch,
     session: Session = Depends(get_session),
 ):
     """
@@ -497,13 +495,13 @@ async def export_compounds(
     )
 
 
-@app.get(
+@app.post(
     "/compounds/statistics/",
     response_model=schemas.CompoundSearchResultStatistics,
     tags=[Tag.COMPOUND],
 )
 async def get_compounds_statistics(
-    search: schemas.CompoundOrganismSearch = Depends(),
+    search: schemas.CompoundOrganismSearch,
     session: Session = Depends(get_session),
 ) -> schemas.CompoundSearchResultStatistics:
     """Get statistics of compounds matching the search criteria, including count and quartiles of various properties.
