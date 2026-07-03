@@ -1,7 +1,7 @@
 import logging
 from datetime import date, datetime
 from enum import Enum
-from typing import Sequence, Tuple, Type, TypeAlias, Union, get_args, get_origin
+from typing import Sequence, Type, TypeAlias, Union, get_args, get_origin
 
 from fastapi import HTTPException, status
 from pydantic import BaseModel
