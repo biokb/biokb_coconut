@@ -4,7 +4,7 @@ import os
 import secrets
 from contextlib import asynccontextmanager
 from io import BytesIO
-from typing import AsyncGenerator, Generator, Sequence, Tuple
+from typing import AsyncGenerator, Generator, Optional, Sequence, Tuple
 
 import pandas as pd
 import uvicorn
@@ -578,7 +578,9 @@ async def get_compounds_statistics(
     return schemas.CompoundSearchResultStatistics(**statistics)
 
 
-@app.get("/compound/", response_model=schemas.CompoundDetail, tags=[Tag.COMPOUND])
+@app.get(
+    "/compound/", response_model=Optional[schemas.CompoundDetail], tags=[Tag.COMPOUND]
+)
 async def get_compound(
     session: Session = Depends(get_session),
     identifier: str = Query(
