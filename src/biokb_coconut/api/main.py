@@ -2,9 +2,10 @@ import logging
 import operator
 import os
 import secrets
+from collections.abc import AsyncGenerator, Generator, Sequence
 from contextlib import asynccontextmanager
 from io import BytesIO
-from typing import AsyncGenerator, Generator, Optional, Sequence, Tuple
+from typing import Optional
 
 import pandas as pd
 import uvicorn
@@ -109,7 +110,7 @@ def run_api(host: str = "0.0.0.0", port: int = 8000) -> None:
 
 
 def verify_credentials(
-    credentials: HTTPBasicCredentials = Depends(HTTPBasic()),
+    credentials: HTTPBasicCredentials = Depends(HTTPBasic()),  # noqa: B008
 ) -> None:
     is_correct_username = secrets.compare_digest(credentials.username, USERNAME)
     is_correct_password = secrets.compare_digest(credentials.password, PASSWORD)
@@ -132,7 +133,7 @@ def verify_credentials(
     tags=[Tag.DBMANAGE],
 )
 def import_data(
-    credentials: HTTPBasicCredentials = Depends(verify_credentials),
+    credentials: HTTPBasicCredentials = Depends(verify_credentials),  # noqa: B008
     force_download: bool = Query(
         False,
         description=(
@@ -168,7 +169,7 @@ def import_data(
 
 @app.get("/export_ttls/", tags=[Tag.DBMANAGE])
 async def create_ttls(
-    credentials: HTTPBasicCredentials = Depends(verify_credentials),
+    credentials: HTTPBasicCredentials = Depends(verify_credentials),  # noqa: B008
     force_create: bool = Query(
         False,
         description="Whether to re-generate the TTL files even if they already exist.",
@@ -192,7 +193,7 @@ async def create_ttls(
 
 @app.get("/import_neo4j/", tags=[Tag.DBMANAGE])
 async def import_neo4j(
-    credentials: HTTPBasicCredentials = Depends(verify_credentials),
+    credentials: HTTPBasicCredentials = Depends(verify_credentials),  # noqa: B008
     uri: str | None = Query(
         default=os.environ.get("NEO4J_URI", NEO4J_URI),
         description="The Neo4j URI. If not provided, "
@@ -242,7 +243,7 @@ async def import_neo4j(
 )
 async def search_compounds(
     search: schemas.CompoundOrganismSearch,
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_session),  # noqa: B008
 ):
     """
     Search compounds. Returns a list of compounds with their DOIs,
@@ -331,7 +332,7 @@ async def search_compounds(
 )
 async def suggest_organisms(
     organism_search: str = Query(..., description="Organism name to search for"),
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_session),  # noqa: B008
 ) -> Sequence[str]:
     """Search organisms. Returns a list of organism names."""
     stmt = (
@@ -351,7 +352,7 @@ async def suggest_organisms(
 )
 async def suggest_synonyms(
     synonym_search: str = Query(..., description="Synonym name to search for"),
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_session),  # noqa: B008
 ) -> Sequence[str]:
     """Search synonyms. Returns a list of synonym names."""
     stmt = (
@@ -370,8 +371,8 @@ async def suggest_synonyms(
     tags=[Tag.COMPOUND],
 )
 async def export_compounds(
-    search: schemas.CompoundSearchExportFile = Depends(),
-    session: Session = Depends(get_session),
+    search: schemas.CompoundSearchExportFile = Depends(),  # noqa: B008
+    session: Session = Depends(get_session),  # noqa: B008
 ) -> StreamingResponse:
     """
     Export compounds. Returns a list of max. 1000 compounds with their organisms.
@@ -507,7 +508,7 @@ async def export_compounds(
 )
 async def get_compounds_statistics(
     search: schemas.CompoundOrganismSearch,
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_session),  # noqa: B008
 ) -> schemas.CompoundSearchResultStatistics:
     """Get statistics of compounds matching the search criteria, including count and quartiles of various properties.
 
@@ -567,7 +568,7 @@ async def get_compounds_statistics(
     ]
     for col in boolean_cols:
         true_count = df[col].sum()
-        false_count = (df[col] == False).sum()  # noqa: E712
+        false_count = (df[col] == False).sum()
         null_count = df[col].isnull().sum()
         statistics[col] = {
             "true_percentage": round(true_count / all * 100, 1),
@@ -582,7 +583,7 @@ async def get_compounds_statistics(
     "/compound/", response_model=Optional[schemas.CompoundDetail], tags=[Tag.COMPOUND]
 )
 async def get_compound(
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_session),  # noqa: B008
     identifier: str = Query(
         ..., description="Compound identifier", examples=["CNP0581134.2"]
     ),
@@ -601,7 +602,8 @@ async def get_compound(
     tags=[Tag.COMPOUND],
 )
 async def get_compound_molfile(
-    session: Session = Depends(get_session), identifier: str | None = None
+    session: Session = Depends(get_session),  # noqa: B008
+    identifier: str | None = None,
 ):
     """Get a 3D molfile string by compound identifier."""
     standard_inchi: str | None = (
@@ -642,7 +644,7 @@ async def get_compound_molfile(
 @app.get("/compound/image/{identifier}/", response_class=Response, tags=[Tag.COMPOUND])
 async def get_compound_image_by_id(
     identifier: str,
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_session),  # noqa: B008
     width: int = Query(400, ge=64, le=2048, description="Output image width in px"),
     height: int = Query(300, ge=64, le=2048, description="Output image height in px"),
 ) -> Response:
@@ -698,7 +700,7 @@ async def get_compound_image_by_id(
 
 @app.get("/compound/name/suggestions", response_model=list[str], tags=[Tag.COMPOUND])
 async def get_compound_name_suggestions(
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_session),  # noqa: B008
     name: str = Query(
         ..., description="Compound name", examples=["Aspirin"], min_length=3
     ),
@@ -720,8 +722,8 @@ async def get_compound_name_suggestions(
 
 @app.get("/dois/", response_model=schemas.DOISearchResult, tags=[Tag.COMPOUND])
 async def search_dois(
-    search: schemas.DOISearch = Depends(),
-    session: Session = Depends(get_session),
+    search: schemas.DOISearch = Depends(),  # noqa: B008
+    session: Session = Depends(get_session),  # noqa: B008
 ) -> SASearchResults | dict[str, str]:
     """
     Search DOIs. Returns a list of DOIs with their compounds.
@@ -737,8 +739,8 @@ async def search_dois(
     "/organisms/", response_model=schemas.OrganismSearchResult, tags=[Tag.ORGANISM]
 )
 async def search_organisms(
-    search: schemas.OrganismSearch = Depends(),
-    session: Session = Depends(get_session),
+    search: schemas.OrganismSearch = Depends(),  # noqa: B008
+    session: Session = Depends(get_session),  # noqa: B008
 ) -> SASearchResults | dict[str, str]:
     """
     Search organisms. Returns a list of organisms with their compounds.
@@ -752,8 +754,8 @@ async def search_organisms(
 
 @app.get("/synonyms/", response_model=schemas.SynonymSearchResult, tags=[Tag.SYNONYMS])
 async def search_synonyms(
-    search: schemas.SynonymSearch = Depends(),
-    session: Session = Depends(get_session),
+    search: schemas.SynonymSearch = Depends(),  # noqa: B008
+    session: Session = Depends(get_session),  # noqa: B008
 ) -> SASearchResults | dict[str, str]:
     """
     Search synonyms. Returns a list of synonyms with their compounds.
@@ -769,8 +771,8 @@ async def search_synonyms(
     "/collections/", response_model=schemas.CollectionSearchResult, tags=[Tag.COMPOUND]
 )
 async def search_collections(
-    search: schemas.CollectionSearch = Depends(),
-    session: Session = Depends(get_session),
+    search: schemas.CollectionSearch = Depends(),  # noqa: B008
+    session: Session = Depends(get_session),  # noqa: B008
 ) -> SASearchResults | dict[str, str]:
     """
     Search collections. Returns a list of collections with their compound identifiers.
@@ -784,14 +786,14 @@ async def search_collections(
 
 @app.get("/collections/names", response_model=list[schemas.Name], tags=[Tag.COMPOUND])
 async def get_collection_names(
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_session),  # noqa: B008
     id: int | None = Query(
         None, description="Optional collection ID to filter results"
     ),
     name: str | None = Query(
         None, description="Optional collection name to filter results"
     ),
-) -> Sequence[Row[Tuple[int, str]]]:
+) -> Sequence[Row[tuple[int, str]]]:
     """
     Returns a list of collection names.
     """
@@ -800,14 +802,14 @@ async def get_collection_names(
         stmt = stmt.where(models.Collection.id == id)
     if not id and name:
         stmt = stmt.where(models.Collection.name.ilike(name))
-    result: Sequence[Row[Tuple[int, str]]] = session.execute(stmt).all()
+    result: Sequence[Row[tuple[int, str]]] = session.execute(stmt).all()
     return result
 
 
 @app.get("/cas/", response_model=schemas.CASSearchResult, tags=[Tag.COMPOUND])
 async def search_cas(
-    search: schemas.CASSearch = Depends(),
-    session: Session = Depends(get_session),
+    search: schemas.CASSearch = Depends(),  # noqa: B008
+    session: Session = Depends(get_session),  # noqa: B008
 ) -> SASearchResults | dict[str, str]:
     """
     Search CAS numbers. Returns a list of CAS numbers with their compounds.
@@ -825,8 +827,8 @@ async def search_cas(
     tags=[Tag.COMPOUND],
 )
 async def search_chemical_class(
-    search: schemas.ChemicalClassSearch = Depends(),
-    session: Session = Depends(get_session),
+    search: schemas.ChemicalClassSearch = Depends(),  # noqa: B008
+    session: Session = Depends(get_session),  # noqa: B008
 ) -> SASearchResults | dict[str, str]:
     """
     Search CAS numbers. Returns a list of CAS numbers with their compounds.
@@ -842,14 +844,14 @@ async def search_chemical_class(
     "/chemical_class/names", response_model=list[schemas.Name], tags=[Tag.COMPOUND]
 )
 async def get_chemical_class_names(
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_session),  # noqa: B008
     id: int | None = Query(
         None, description="Optional chemical class ID to filter results"
     ),
     name: str | None = Query(
         None, description="Optional chemical class name to filter results"
     ),
-) -> Sequence[Row[Tuple[int, str]]]:
+) -> Sequence[Row[tuple[int, str]]]:
     """
     Returns a list of chemical class names.
     """
@@ -858,7 +860,7 @@ async def get_chemical_class_names(
         stmt = stmt.where(models.ChemicalClass.id == id)
     if not id and name:
         stmt = stmt.where(models.ChemicalClass.name.ilike(name))
-    result: Sequence[Row[Tuple[int, str]]] = session.execute(stmt).all()
+    result: Sequence[Row[tuple[int, str]]] = session.execute(stmt).all()
     return result
 
 
@@ -868,8 +870,8 @@ async def get_chemical_class_names(
     tags=[Tag.COMPOUND],
 )
 async def search_chemical_sub_class(
-    search: schemas.ChemicalSubClassSearch = Depends(),
-    session: Session = Depends(get_session),
+    search: schemas.ChemicalSubClassSearch = Depends(),  # noqa: B008
+    session: Session = Depends(get_session),  # noqa: B008
 ) -> SASearchResults | dict[str, str]:
     """
     Search chemical sub classes. Returns a list of chemical sub classes
@@ -886,14 +888,14 @@ async def search_chemical_sub_class(
     "/chemical_sub_class/names", response_model=list[schemas.Name], tags=[Tag.COMPOUND]
 )
 async def get_chemical_sub_class_names(
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_session),  # noqa: B008
     id: int | None = Query(
         None, description="Optional chemical sub class ID to filter results"
     ),
     name: str | None = Query(
         None, description="Optional chemical sub class name to filter results"
     ),
-) -> Sequence[Row[Tuple[int, str]]]:
+) -> Sequence[Row[tuple[int, str]]]:
     """
     Returns a list of chemical sub class names.
     """
@@ -902,7 +904,7 @@ async def get_chemical_sub_class_names(
         stmt = stmt.where(models.ChemicalSubClass.id == id)
     if not id and name:
         stmt = stmt.where(models.ChemicalSubClass.name.ilike(name))
-    result: Sequence[Row[Tuple[int, str]]] = session.execute(stmt).all()
+    result: Sequence[Row[tuple[int, str]]] = session.execute(stmt).all()
     return result
 
 
@@ -912,8 +914,8 @@ async def get_chemical_sub_class_names(
     tags=[Tag.COMPOUND],
 )
 async def search_direct_parent_classification(
-    search: schemas.DirectParentClassificationSearch = Depends(),
-    session: Session = Depends(get_session),
+    search: schemas.DirectParentClassificationSearch = Depends(),  # noqa: B008
+    session: Session = Depends(get_session),  # noqa: B008
 ) -> SASearchResults | dict[str, str]:
     """
     Search direct parent classifications. Returns a list of direct parent
@@ -932,14 +934,14 @@ async def search_direct_parent_classification(
     tags=[Tag.COMPOUND],
 )
 async def get_direct_parent_classification_names(
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_session),  # noqa: B008
     id: int | None = Query(
         None, description="Optional direct parent classification ID to filter results"
     ),
     name: str | None = Query(
         None, description="Optional direct parent classification name to filter results"
     ),
-) -> Sequence[Row[Tuple[int, str]]]:
+) -> Sequence[Row[tuple[int, str]]]:
     """
     Returns a list of direct parent classification names.
     """
@@ -951,7 +953,7 @@ async def get_direct_parent_classification_names(
         stmt = stmt.where(models.DirectParentClassification.id == id)
     if not id and name:
         stmt = stmt.where(models.DirectParentClassification.name.ilike(name))
-    result: Sequence[Row[Tuple[int, str]]] = session.execute(stmt).all()
+    result: Sequence[Row[tuple[int, str]]] = session.execute(stmt).all()
     return result
 
 
@@ -961,8 +963,8 @@ async def get_direct_parent_classification_names(
     tags=[Tag.COMPOUND],
 )
 async def search_chemical_super_class(
-    search: schemas.ChemicalSuperClassSearch = Depends(),
-    session: Session = Depends(get_session),
+    search: schemas.ChemicalSuperClassSearch = Depends(),  # noqa: B008
+    session: Session = Depends(get_session),  # noqa: B008
 ) -> SASearchResults | dict[str, str]:
     """
     Search chemical super classes. Returns a list of chemical super classes
@@ -981,14 +983,14 @@ async def search_chemical_super_class(
     tags=[Tag.COMPOUND],
 )
 async def get_chemical_super_class_names(
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_session),  # noqa: B008
     id: int | None = Query(
         None, description="Optional chemical super class ID to filter results"
     ),
     name: str | None = Query(
         None, description="Optional chemical super class name to filter results"
     ),
-) -> Sequence[Row[Tuple[int, str]]]:
+) -> Sequence[Row[tuple[int, str]]]:
     """
     Returns a list of chemical super class names.
     """
@@ -998,7 +1000,7 @@ async def get_chemical_super_class_names(
         stmt = stmt.where(models.ChemicalSuperClass.id == id)
     if not id and name:
         stmt = stmt.where(models.ChemicalSuperClass.name.ilike(name))
-    result: Sequence[Row[Tuple[int, str]]] = session.execute(stmt).all()
+    result: Sequence[Row[tuple[int, str]]] = session.execute(stmt).all()
     return result
 
 
@@ -1008,8 +1010,8 @@ async def get_chemical_super_class_names(
     tags=[Tag.NP_CLASSIFIER],
 )
 async def search_np_classifier_pathway(
-    search: schemas.NpClassifierPathwaySearch = Depends(),
-    session: Session = Depends(get_session),
+    search: schemas.NpClassifierPathwaySearch = Depends(),  # noqa: B008
+    session: Session = Depends(get_session),  # noqa: B008
 ) -> SASearchResults | dict[str, str]:
     """
     Search NP classifier pathways. Returns a list of NP classifier
@@ -1028,14 +1030,14 @@ async def search_np_classifier_pathway(
     tags=[Tag.NP_CLASSIFIER],
 )
 async def get_np_classifier_pathway_names(
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_session),  # noqa: B008
     id: int | None = Query(
         None, description="Optional NP classifier pathway ID to filter results"
     ),
     name: str | None = Query(
         None, description="Optional NP classifier pathway name to filter results"
     ),
-) -> Sequence[Row[Tuple[int, str]]]:
+) -> Sequence[Row[tuple[int, str]]]:
     """
     Returns a list of NP classifier pathway names.
     """
@@ -1045,7 +1047,7 @@ async def get_np_classifier_pathway_names(
         stmt = stmt.where(models.NpClassifierPathway.id == id)
     if not id and name:
         stmt = stmt.where(models.NpClassifierPathway.name.ilike(name))
-    result: Sequence[Row[Tuple[int, str]]] = session.execute(stmt).all()
+    result: Sequence[Row[tuple[int, str]]] = session.execute(stmt).all()
     return result
 
 
@@ -1055,8 +1057,8 @@ async def get_np_classifier_pathway_names(
     tags=[Tag.NP_CLASSIFIER],
 )
 async def search_np_classifier_superclass(
-    search: schemas.NpClassifierSuperclassSearch = Depends(),
-    session: Session = Depends(get_session),
+    search: schemas.NpClassifierSuperclassSearch = Depends(),  # noqa: B008
+    session: Session = Depends(get_session),  # noqa: B008
 ) -> SASearchResults | dict[str, str]:
     """
     Search NP classifier superclasses. Returns a list of NP classifier superclasses with their compounds.
@@ -1074,14 +1076,14 @@ async def search_np_classifier_superclass(
     tags=[Tag.NP_CLASSIFIER],
 )
 async def get_np_classifier_superclass_names(
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_session),  # noqa: B008
     id: int | None = Query(
         None, description="Optional NP classifier superclass ID to filter results"
     ),
     name: str | None = Query(
         None, description="Optional NP classifier superclass name to filter results"
     ),
-) -> Sequence[Row[Tuple[int, str]]]:
+) -> Sequence[Row[tuple[int, str]]]:
     """
     Returns a list of NP classifier superclass names.
     """
@@ -1091,7 +1093,7 @@ async def get_np_classifier_superclass_names(
         stmt = stmt.where(models.NpClassifierSuperclass.id == id)
     if not id and name:
         stmt = stmt.where(models.NpClassifierSuperclass.name.ilike(name))
-    result: Sequence[Row[Tuple[int, str]]] = session.execute(stmt).all()
+    result: Sequence[Row[tuple[int, str]]] = session.execute(stmt).all()
     return result
 
 
@@ -1101,8 +1103,8 @@ async def get_np_classifier_superclass_names(
     tags=[Tag.NP_CLASSIFIER],
 )
 async def search_np_classifier_class(
-    search: schemas.NpClassifierClassSearch = Depends(),
-    session: Session = Depends(get_session),
+    search: schemas.NpClassifierClassSearch = Depends(),  # noqa: B008
+    session: Session = Depends(get_session),  # noqa: B008
 ) -> SASearchResults | dict[str, str]:
     """
     Search NP classifier classes. Returns a list of NP classifier classes with their compounds.
@@ -1120,14 +1122,14 @@ async def search_np_classifier_class(
     tags=[Tag.NP_CLASSIFIER],
 )
 async def get_np_classifier_class_names(
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_session),  # noqa: B008
     id: int | None = Query(
         None, description="Optional NP classifier class ID to filter results"
     ),
     name: str | None = Query(
         None, description="Optional NP classifier class name to filter results"
     ),
-) -> Sequence[Row[Tuple[int, str]]]:
+) -> Sequence[Row[tuple[int, str]]]:
     """
     Returns a list of NP classifier class names.
     """
@@ -1137,5 +1139,5 @@ async def get_np_classifier_class_names(
         stmt = stmt.where(models.NpClassifierClass.id == id)
     if not id and name:
         stmt = stmt.where(models.NpClassifierClass.name.ilike(name))
-    result: Sequence[Row[Tuple[int, str]]] = session.execute(stmt).all()
+    result: Sequence[Row[tuple[int, str]]] = session.execute(stmt).all()
     return result

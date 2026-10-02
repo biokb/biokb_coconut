@@ -58,7 +58,8 @@ import logging
 import os.path
 import re
 import shutil
-from typing import List, Optional, Sequence, Type, TypeVar
+from collections.abc import Sequence
+from typing import Optional, TypeVar
 
 from rdflib import RDF, XSD, Graph, Literal, Namespace, URIRef
 from sqlalchemy import Engine, create_engine, select
@@ -118,7 +119,7 @@ def get_empty_graph() -> Graph:
     return graph
 
 
-def get_rel_name(model: Type[models.OnlyName]) -> str:
+def get_rel_name(model: type[models.OnlyName]) -> str:
     """
     Convert a SQLAlchemy model class name to a relationship name in uppercase snake
     case with underscores.
@@ -126,7 +127,7 @@ def get_rel_name(model: Type[models.OnlyName]) -> str:
     Prefixing with "HAS_"
 
     Args:
-        model (Type[models.Base]): A SQLAlchemy model class
+        model (type[models.Base]): A SQLAlchemy model class
     Returns:
         str: The relationship name in the format "HAS_<UPPERCASE_WITH_UNDERSCORES>"
     Examples:
@@ -189,7 +190,7 @@ class TurtleCreator:
         Returns:
             Path to the zip file containing all generated Turtle files.
         """
-        logging.info("Starting turtle file generation process.")
+        logger.info("Starting turtle file generation process.")
         os.makedirs(self.__ttls_folder, exist_ok=True)
         self._create_compounds()
         self._create_only_name_classes()
@@ -197,11 +198,11 @@ class TurtleCreator:
 
         # Package everything into a zip file
         path_to_zip_file: str = self._create_zip_from_all_ttls()
-        logging.info(f"Turtle files successfully packaged in {path_to_zip_file}")
+        logger.info(f"Turtle files successfully packaged in {path_to_zip_file}")
         return path_to_zip_file
 
     def _create_organisms_with_links(self) -> None:
-        logging.info("Creating RDF organisms turtle file.")
+        logger.info("Creating RDF organisms turtle file.")
         org_ns = get_namespace(models.Organism.__name__)
         graph = get_empty_graph()
         graph.bind(prefix="o", namespace=org_ns)
@@ -211,7 +212,7 @@ class TurtleCreator:
             query = session.query(models.Organism).join(models.Organism.compounds)
             if self.compound_filter:
                 query = query.where(*self.compound_filter)
-            organisms: List[models.Organism] = query.all()
+            organisms: list[models.Organism] = query.all()
 
             for organism in tqdm(organisms, desc="Creating organisms triples"):
                 org: URIRef = org_ns[str(organism.id)]
@@ -282,10 +283,10 @@ class TurtleCreator:
         del graph
 
     def __create_only_name_class(
-        self, model: Type[models.OnlyName], add_node_label: str | None = None
+        self, model: type[models.OnlyName], add_node_label: str | None = None
     ) -> None:
 
-        logging.info(f"Creating RDF {model.__name__} classifiers turtle file.")
+        logger.info(f"Creating RDF {model.__name__} classifiers turtle file.")
         model_namespace = get_namespace(model.__name__)
         graph = Graph()
         graph.bind(prefix="r", namespace=namespaces.REL_NS)
@@ -351,7 +352,7 @@ class TurtleCreator:
         del graph
 
     def _create_only_name_classes(self) -> None:
-        list_of_models: List[Type[models.OnlyName]] = [
+        list_of_models: list[type[models.OnlyName]] = [
             models.ChemicalClass,
             models.ChemicalSubClass,
             models.ChemicalSuperClass,
@@ -364,7 +365,7 @@ class TurtleCreator:
             self.__create_only_name_class(model)
 
     def _create_compounds(self) -> None:
-        logging.info("Creating RDF compounds turtle files.")
+        logger.info("Creating RDF compounds turtle files.")
 
         BATCH_SIZE = 100000
         batch_number = 0
@@ -378,7 +379,7 @@ class TurtleCreator:
             if self.compound_filter:
                 query = query.where(*self.compound_filter)
 
-            compounds: List[models.Compound] = query.all()
+            compounds: list[models.Compound] = query.all()
 
             for compound in tqdm(compounds, desc="Creating compounds triples"):
                 comp: URIRef = namespaces.COMP_NS[str(compound.identifier)]
@@ -391,6 +392,13 @@ class TurtleCreator:
                     )
                 )
                 graph.add(triple=(comp, RDF.type, namespaces.NODE_NS[BASIC_NODE_LABEL]))
+                graph.add(
+                    triple=(
+                        comp,
+                        namespaces.REL_NS["id"],
+                        Literal(compound.identifier, datatype=XSD.string),
+                    )
+                )
                 graph.add(
                     triple=(
                         comp,
@@ -424,22 +432,20 @@ class TurtleCreator:
                                 Literal(value, datatype=XSD.float),
                             )
                         )
-                name = getattr(compound, "name")
-                if name:
+                if compound.name:
                     graph.add(
                         triple=(
                             comp,
                             namespaces.REL_NS["name"],
-                            Literal(name, datatype=XSD.string),
+                            Literal(compound.name, datatype=XSD.string),
                         )
                     )
-                contains_sugar = getattr(compound, "contains_sugar")
-                if contains_sugar is not None:
+                if compound.contains_sugar is not None:
                     graph.add(
                         triple=(
                             comp,
                             namespaces.REL_NS["contains_sugar"],
-                            Literal(contains_sugar, datatype=XSD.boolean),
+                            Literal(compound.contains_sugar, datatype=XSD.boolean),
                         )
                     )
 

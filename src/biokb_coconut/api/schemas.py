@@ -1,7 +1,7 @@
 import re
 from enum import Enum
 from logging import getLogger
-from typing import Annotated, List, Optional
+from typing import Annotated, Optional
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 
@@ -186,17 +186,17 @@ class Compound(CompoundBase2):
 
 
 class CompoundDetail(Compound):
-    organisms: List["OrganismBase"] = Field(
-        [], description="List of organisms associated with this compound"
+    organisms: list["OrganismBase"] = Field(
+        [], description="list of organisms associated with this compound"
     )
-    dois: List["DOIBase"] = Field(
-        [], description="List of DOIs associated with this compound"
+    dois: list["DOIBase"] = Field(
+        [], description="list of DOIs associated with this compound"
     )
-    synonyms: List["SynonymBase"] = Field(
-        [], description="List of synonyms associated with this compound"
+    synonyms: list["SynonymBase"] = Field(
+        [], description="list of synonyms associated with this compound"
     )
-    cas_numbers: List["CASBase"] = Field(
-        [], description="List of CAS numbers associated with this compound"
+    cas_numbers: list["CASBase"] = Field(
+        [], description="list of CAS numbers associated with this compound"
     )
 
     model_config = ConfigDict(from_attributes=True)
@@ -444,7 +444,7 @@ class CompoundSearchResult(BaseModel):
     count: int
     offset: int
     limit: int
-    results: List[CompoundBase]
+    results: list[CompoundBase]
 
 
 class Quartile(BaseModel):
@@ -497,8 +497,8 @@ class DOIBase(BaseModel):
 
 
 class DOI_with_compounds(DOIBase):
-    compounds: List[CompoundBase] = Field(
-        [], description="List of compounds associated with this DOI"
+    compounds: list[CompoundBase] = Field(
+        [], description="list of compounds associated with this DOI"
     )
 
 
@@ -511,7 +511,7 @@ class DOISearchResult(BaseModel):
     count: int
     offset: int
     limit: int
-    results: List[DOI_with_compounds]
+    results: list[DOI_with_compounds]
 
 
 class OrganismBase(BaseModel):
@@ -525,8 +525,8 @@ class OrganismBase(BaseModel):
 
 
 class Organism_with_compounds(OrganismBase):
-    compound_identifiers: List[str] = Field(
-        [], description="List of compound identifiers associated with this organism"
+    compound_identifiers: list[str] = Field(
+        [], description="list of compound identifiers associated with this organism"
     )
 
 
@@ -545,7 +545,7 @@ class OrganismSearchResult(BaseModel):
     count: int
     offset: int
     limit: int
-    results: List[Organism_with_compounds]
+    results: list[Organism_with_compounds]
 
 
 class SynonymBase(BaseModel):
@@ -563,8 +563,8 @@ class SynonymSearch(OffsetLimit):
 
 
 class Synonym_with_compounds(SynonymBase):
-    compound_identifiers: List[str] = Field(
-        [], description="List of compound identifiers associated with this synonym"
+    compound_identifiers: list[str] = Field(
+        [], description="list of compound identifiers associated with this synonym"
     )
 
     model_config = ConfigDict(from_attributes=True)
@@ -575,7 +575,7 @@ class SynonymSearchResult(BaseModel):
     count: int
     offset: int
     limit: int
-    results: List[Synonym_with_compounds]
+    results: list[Synonym_with_compounds]
 
 
 class CASBase(BaseModel):
@@ -586,8 +586,8 @@ class CASBase(BaseModel):
 
 
 class CAS_with_compounds(CASBase):
-    compounds: List[CompoundBase] = Field(
-        [], description="List of compounds associated with this CAS"
+    compounds: list[CompoundBase] = Field(
+        [], description="list of compounds associated with this CAS"
     )
 
 
@@ -600,7 +600,7 @@ class CASSearchResult(BaseModel):
     count: int
     offset: int
     limit: int
-    results: List[CAS_with_compounds]
+    results: list[CAS_with_compounds]
 
 
 class CollectionBase(BaseModel):
@@ -613,8 +613,8 @@ class CollectionBase(BaseModel):
 
 
 class Collection_with_compound_identifiers(CollectionBase):
-    compound_identifiers: List[str] = Field(
-        [], description="List of compound identifiers associated with this collection"
+    compound_identifiers: list[str] = Field(
+        [], description="list of compound identifiers associated with this collection"
     )
 
 
@@ -630,7 +630,7 @@ class CollectionSearchResult(BaseModel):
     count: int
     offset: int
     limit: int
-    results: List[Collection_with_compound_identifiers]
+    results: list[Collection_with_compound_identifiers]
 
 
 class ChemicalClassBase(BaseModel):
@@ -643,9 +643,9 @@ class ChemicalClassBase(BaseModel):
 
 
 class ChemicalClassWithCompoundIDs(ChemicalClassBase):
-    compound_identifiers: List[str] = Field(
+    compound_identifiers: list[str] = Field(
         [],
-        description="List of compound identifiers associated with this chemical class",
+        description="list of compound identifiers associated with this chemical class",
     )
 
     model_config = ConfigDict(from_attributes=True)
@@ -663,7 +663,7 @@ class ChemicalClassSearchResult(BaseModel):
     count: int
     offset: int
     limit: int
-    results: List[ChemicalClassWithCompoundIDs]
+    results: list[ChemicalClassWithCompoundIDs]
 
 
 class ChemicalSubClassBase(BaseModel):
@@ -676,8 +676,8 @@ class ChemicalSubClassBase(BaseModel):
 
 
 class ChemicalSubClass(ChemicalSubClassBase):
-    compounds: List[CompoundBase] = Field(
-        [], description="List of compounds associated with this chemical subclass"
+    compounds: list[CompoundBase] = Field(
+        [], description="list of compounds associated with this chemical subclass"
     )
 
     model_config = ConfigDict(from_attributes=True)
@@ -695,7 +695,7 @@ class ChemicalSubClassSearchResult(BaseModel):
     count: int
     offset: int
     limit: int
-    results: List[ChemicalSubClass]
+    results: list[ChemicalSubClass]
 
 
 class DirectParentClassificationBase(BaseModel):
@@ -709,9 +709,9 @@ class DirectParentClassificationBase(BaseModel):
 
 
 class DirectParentClassificationWithCompoundIDs(DirectParentClassificationBase):
-    compound_identifiers: List[str] = Field(
+    compound_identifiers: list[str] = Field(
         [],
-        description="List of compound identifiers associated with this direct parent classification",
+        description="list of compound identifiers associated with this direct parent classification",
     )
 
     model_config = ConfigDict(from_attributes=True)
@@ -732,7 +732,7 @@ class DirectParentClassificationSearchResult(BaseModel):
     count: int
     offset: int
     limit: int
-    results: List[DirectParentClassificationWithCompoundIDs]
+    results: list[DirectParentClassificationWithCompoundIDs]
 
 
 class ChemicalSuperClassBase(BaseModel):
@@ -745,9 +745,9 @@ class ChemicalSuperClassBase(BaseModel):
 
 
 class ChemicalSuperClassWithCompoundIDs(ChemicalSuperClassBase):
-    compound_identifiers: List[str] = Field(
+    compound_identifiers: list[str] = Field(
         [],
-        description="List of compound identifiers associated with this chemical superclass",
+        description="list of compound identifiers associated with this chemical superclass",
     )
 
     model_config = ConfigDict(from_attributes=True)
@@ -765,7 +765,7 @@ class ChemicalSuperClassSearchResult(BaseModel):
     count: int
     offset: int
     limit: int
-    results: List[ChemicalSuperClassWithCompoundIDs]
+    results: list[ChemicalSuperClassWithCompoundIDs]
 
 
 class NpClassifierPathwayBase(BaseModel):
@@ -778,9 +778,9 @@ class NpClassifierPathwayBase(BaseModel):
 
 
 class NpClassifierPathwayWithCompoundIDs(NpClassifierPathwayBase):
-    compound_identifiers: List[str] = Field(
+    compound_identifiers: list[str] = Field(
         [],
-        description="List of compound identifiers associated with this NP classifier pathway",
+        description="list of compound identifiers associated with this NP classifier pathway",
     )
 
     model_config = ConfigDict(from_attributes=True)
@@ -798,7 +798,7 @@ class NpClassifierPathwaySearchResult(BaseModel):
     count: int
     offset: int
     limit: int
-    results: List[NpClassifierPathwayWithCompoundIDs]
+    results: list[NpClassifierPathwayWithCompoundIDs]
 
 
 class NpClassifierSuperclassBase(BaseModel):
@@ -812,9 +812,9 @@ class NpClassifierSuperclassBase(BaseModel):
 
 
 class NpClassifierSuperclassWithCompoundIDs(NpClassifierSuperclassBase):
-    compound_identifiers: List[str] = Field(
+    compound_identifiers: list[str] = Field(
         [],
-        description="List of compound identifiers associated with this NP classifier superclass",
+        description="list of compound identifiers associated with this NP classifier superclass",
     )
 
     model_config = ConfigDict(from_attributes=True)
@@ -835,7 +835,7 @@ class NpClassifierSuperclassSearchResult(BaseModel):
     count: int
     offset: int
     limit: int
-    results: List[NpClassifierSuperclassWithCompoundIDs]
+    results: list[NpClassifierSuperclassWithCompoundIDs]
 
 
 class NpClassifierClassBase(BaseModel):
@@ -848,9 +848,9 @@ class NpClassifierClassBase(BaseModel):
 
 
 class NpClassifierClassWithCompoundIDs(NpClassifierClassBase):
-    compound_identifiers: List[str] = Field(
+    compound_identifiers: list[str] = Field(
         [],
-        description="List of compound identifiers associated with this NP classifier class",
+        description="list of compound identifiers associated with this NP classifier class",
     )
 
     model_config = ConfigDict(from_attributes=True)
@@ -868,4 +868,4 @@ class NpClassifierClassSearchResult(BaseModel):
     count: int
     offset: int
     limit: int
-    results: List[NpClassifierClassWithCompoundIDs]
+    results: list[NpClassifierClassWithCompoundIDs]
