@@ -168,7 +168,7 @@ def import_data(
 
 
 @app.get("/export_ttls/", tags=[Tag.DBMANAGE])
-async def create_ttls(
+async def create_turtles(
     credentials: HTTPBasicCredentials = Depends(verify_credentials),  # noqa: B008
     force_create: bool = Query(
         False,
@@ -179,7 +179,7 @@ async def create_ttls(
     file_path = ZIPPED_TTLS_PATH
     if not os.path.exists(file_path) or force_create:
         try:
-            TurtleCreator().create_ttls()
+            TurtleCreator().create_turtles()
         except Exception as e:
             logger.error(f"Error generating TTL files: {e}")
             raise HTTPException(
@@ -221,7 +221,7 @@ async def import_neo4j(
                 ),
             )
         importer = Neo4jImporter(neo4j_uri=uri, neo4j_user=user, neo4j_pwd=password)
-        importer.import_ttls()
+        importer.import_neo4j()
     except Exception as e:
         logger.error(f"Error importing data into Neo4j: {e}")
         raise HTTPException(

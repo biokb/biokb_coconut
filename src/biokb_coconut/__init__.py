@@ -5,8 +5,8 @@ logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
 from biokb_coconut.db.manager import DbManager, get_session, import_data, models
-from biokb_coconut.rdf.neo4j_importer import Neo4jImporter, import_ttls
-from biokb_coconut.rdf.turtle import TurtleCreator, create_ttls
+from biokb_coconut.rdf.neo4j_importer import Neo4jImporter, import_neo4j
+from biokb_coconut.rdf.turtle import TurtleCreator, create_turtles
 
 try:
     __version__ = version("biokb_coconut")
@@ -19,8 +19,8 @@ __all__ = [
     "import_data",
     "get_session",
     "Neo4jImporter",
-    "import_ttls",
+    "import_neo4j",
     "TurtleCreator",
-    "create_ttls",
+    "create_turtles",
     "models",
 ]

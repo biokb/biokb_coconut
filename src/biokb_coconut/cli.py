@@ -130,7 +130,7 @@ def import_data(
     default=None,
     help="Environment file to load for configuration (default: None)",
 )
-def create_ttls(connection_string: str | None, env: str | None) -> None:
+def create_turtles(connection_string: str | None, env: str | None) -> None:
     """Create TTL files from local database.
 
     Args:
@@ -157,7 +157,7 @@ def create_ttls(connection_string: str | None, env: str | None) -> None:
         )
         connection_string = DB_DEFAULT_CONNECTION_STR
 
-    path_to_zip = TurtleCreator(create_engine(connection_string)).create_ttls()
+    path_to_zip = TurtleCreator(create_engine(connection_string)).create_turtles()
     click.echo(
         f"Path to the zip file containing all generated Turtle files. {path_to_zip}"
     )
@@ -188,7 +188,7 @@ def import_neo4j(uri: str, user: str, password: Optional[str]) -> None:
         click.echo(
             "It is not recommended to provide the Neo4j password via command line."
         )
-    Neo4jImporter(neo4j_uri=uri, neo4j_user=user, neo4j_pwd=password).import_ttls()
+    Neo4jImporter(neo4j_uri=uri, neo4j_user=user, neo4j_pwd=password).import_neo4j()
 
 
 @main.command("run-server")

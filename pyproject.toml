@@ -86,7 +86,7 @@ ignore = ["UP045"]
 
 [tool.black]
 line-length = 88
-target-version = ['py311', 'py312', 'py313']
+target-version = ['py311', 'py312', 'py313', 'py314']
 include = '\.pyi?$'
 
 
